@@ -56,11 +56,12 @@ export function sessionCookieOptions() {
 }
 
 /* ---------- authorisation ---------- */
-export type Action = "view" | "view_transcript" | "operate" | "admin";
+/** "import" = pull an existing call from the provider (read-only toward the provider, idempotent, no spend). */
+export type Action = "view" | "view_transcript" | "operate" | "admin" | "import";
 const MATRIX: Record<Role, Action[]> = {
-  admin: ["view", "view_transcript", "operate", "admin"],
-  operator: ["view", "view_transcript", "operate"],
-  viewer: ["view"],
+  admin: ["view", "view_transcript", "operate", "admin", "import"],
+  operator: ["view", "view_transcript", "operate", "import"],
+  viewer: ["view", "import"],
 };
 export const can = (role: Role | undefined, action: Action) => Boolean(role && MATRIX[role].includes(action));
 

@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: "/urgent", label: "Urgent queue", icon: "▲", count: n },
     { href: "/costs", label: "Costs", icon: "₹" },
     ...(cfg.mode === "mock" && can(user.role, "operate") ? [{ href: "/simulator", label: "Call simulator", icon: "☏" }] : []),
-    ...(cfg.mode === "live" && can(user.role, "operate") ? [{ href: "/calls", label: "Vaani calls", icon: "☏" }] : []),
+    ...(cfg.mode === "live" ? [{ href: "/calls", label: "Vaani calls", icon: "☏" }] : []),
     { href: "/system", label: "System status", icon: "⚙" },
   ];
 

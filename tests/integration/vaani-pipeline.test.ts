@@ -4,7 +4,7 @@ import type { DbHandle } from "@/db/client";
 import { auditEvents, callEvents, costs, enquiries, followUpTasks, notifications } from "@/db/schema";
 import { getMetrics, getOutboundTestSummary, listEnquiries } from "@/modules/analytics/queries";
 import { ingestWebhook } from "@/modules/telephony-events/ingest";
-import { OutboundError, placeTestCall, syncVaaniCall } from "@/modules/telephony-events/outbound";
+import { OutboundError, placeTestCall, syncRecentCalls, syncVaaniCall } from "@/modules/telephony-events/outbound";
 import { createVaaniProvider } from "@/modules/voice-provider/vaani";
 import { VaaniApiError, createVaaniClient, type VaaniClient } from "@/modules/voice-provider/vaani-client";
 import { testDb } from "../helpers/db";
@@ -222,5 +222,28 @@ describe("syncing a finished call from Vaani's API (local use / missed webhook)"
     const empty = provider({ getCallDetails: async () => ({ transcription: "Transcript is not available for further evaluations.", entity: {}, summary: "Transcript is not available for further evaluations." }) });
     await expect(syncVaaniCall(h.db, empty, "inbound-notyet-1", "op")).rejects.toMatchObject({ code: "not_ready", status: 409 });
     await expect(syncVaaniCall(h.db, empty, "../../etc/passwd", "op")).rejects.toMatchObject({ code: "invalid_call_id" });
+  });
+});
+
+describe("importing recent calls from Vaani", () => {
+  const entity = ENTITIES;
+  const details = async () => ({ transcription: TRANSCRIPT.replace(/\[[^\]]+\] /g, ""), entity, summary: "s" });
+
+  it("imports finished calls we do not have, skips ones we do, and counts the ones still processing", async () => {
+    const p = provider({
+      getCallHistory: async () => ({ data: [{ call_id: "inbound-recent-1" }, { call_id: "inbound-recent-2" }, { call_id: "inbound-recent-3" }, { call_id: "inbound-111" }] }),
+      getCallDetails: async (id: string) => id === "inbound-recent-3"
+        ? { transcription: "Transcript is not available for further evaluations.", entity: {}, summary: "Transcript is not available for further evaluations." }
+        : details(),
+    });
+    const r = await syncRecentCalls(h.db, p, "someone");
+    expect(r).toMatchObject({ found: 4, imported: 2, alreadyHad: 1, notReady: 1, failed: 0 });
+    expect((await row("inbound-recent-1")).disposition).toBe("QUALIFIED");
+    expect(await syncRecentCalls(h.db, p, "someone")).toMatchObject({ imported: 0, alreadyHad: 3 });
+  });
+  it("says plainly when Vaani's call-history service is failing (as it currently does on this account)", async () => {
+    const p = provider({ getCallHistory: async () => { throw new VaaniApiError(500, "Vaani GET /api/call-history failed: Invalid client_id format", "server"); } });
+    await expect(syncRecentCalls(h.db, p, "x")).rejects.toMatchObject({ code: "vaani_history_unavailable", status: 502 });
+    await expect(syncRecentCalls(h.db, p, "x")).rejects.toThrow(/call logs/);
   });
 });

@@ -8,7 +8,7 @@ An application that answers **incoming phone enquiries** for Aangan Studio (Pune
 >
 > | Area | Status |
 > |---|---|
-> | Business rules, pricing guardrail, qualification, escalation | **Implemented and tested** (220 automated tests) |
+> | Business rules, pricing guardrail, qualification, escalation | **Implemented and tested** (227 automated tests) |
 > | Database, API, webhook ingestion, dashboard, auth, costs, audit | **Implemented and tested** |
 > | Voice provider (mock) + in-app call simulator | **Works with no credentials** |
 > | Placing calls | **Implemented** (Vaani calls page → outbound test call; import finished calls). Needs a linked number to ring a phone |

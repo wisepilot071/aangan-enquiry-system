@@ -3,9 +3,9 @@ import { requireUser } from "@/lib/auth-server";
 import { fmtDuration, fmtInr, fmtPct } from "@/lib/format";
 import { HELP } from "@/lib/metric-help";
 import { readScope, type SP } from "@/lib/page-scope";
-import { BarChart, Badge, DemoBadge, Empty, Kpi } from "@/components/ui";
+import { BarChart, Badge, DemoBadge, Empty, Funnel, HeroTile, Kpi } from "@/components/ui";
 import { RangeFilter } from "@/components/range-filter";
-import { getDailySeries, getMetrics } from "@/modules/analytics/queries";
+import { getDailySeries, getMetrics, getUrgentQueue } from "@/modules/analytics/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,9 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const { scope, range, from, to } = readScope(sp);
   const db = await getDb();
-  const [m, daily] = await Promise.all([getMetrics(db, scope, range), getDailySeries(db, scope, range)]);
+  const [m, daily, tasks] = await Promise.all([getMetrics(db, scope, range), getDailySeries(db, scope, range), getUrgentQueue(db, scope)]);
+  const openTasks = tasks.filter((t) => t.status === "open").length;
+  const attention = openTasks + m.qualification.humanReviewOpen;
   const rt = m.response;
   const empty = m.calls.total === 0;
 
@@ -33,6 +35,25 @@ export default async function Overview({ searchParams }: { searchParams: Promise
           {scope === "demo" ? <>Run a simulated call from <a href="/simulator?scope=demo">the call simulator</a> to see metrics appear.</> : <>Calls will appear here once the voice provider is connected and a call is received.</>}
         </Empty></div>
       ) : null}
+
+      <section className="hero" aria-label="At a glance">
+        <HeroTile label="Calls received" value={m.calls.total} sub={`${m.calls.handled} handled · ${m.calls.missed + m.calls.failed} missed or failed`} />
+        <HeroTile tone="teal" label="Qualified leads" value={m.qualification.qualified} sub={m.qualification.qualifiedRate.value === null ? "no decided enquiries yet" : `${fmtPct(m.qualification.qualifiedRate.value)} of ${m.qualification.qualifiedRate.den} decided`} />
+        <HeroTile tone={attention ? "alert" : "gold"} href={`/urgent?scope=${scope}`} label="Needs your attention" value={attention}
+          sub={attention ? `${openTasks} open follow-ups · ${m.qualification.humanReviewOpen} to review →` : "nothing waiting"} />
+        <HeroTile tone="gold" label="Answered within 5 min" value={m.response.within5MinMeasured.value === null ? "—" : fmtPct(m.response.within5MinMeasured.value)}
+          sub={m.response.within5MinMeasured.den ? `${m.response.within5MinMeasured.num} of ${m.response.within5MinMeasured.den} measurable calls` : "unmeasurable — the provider sends no response timestamp"} />
+      </section>
+
+      <section className="section" aria-labelledby="flow"><h2 id="flow">Where calls go</h2>
+        <p>From a ring to a designer&apos;s phone. Each step counts only calls that reached it.</p>
+        <div className="card"><Funnel steps={[
+          { label: "Calls received", value: m.calls.total },
+          { label: "Handled", value: m.calls.handled },
+          { label: "Qualified", value: m.qualification.qualified },
+          { label: "Sent to designers*", value: m.handoff.sent + m.handoff.simulated },
+        ]} /><p className="muted small" style={{ marginTop: 10 }}>*Includes urgent escalations{m.handoff.simulated ? " and simulated demo messages (not really delivered)" : ""}, so it can exceed the qualified count.</p></div>
+      </section>
 
       <section className="section" aria-labelledby="calls"><h2 id="calls">Calls</h2>
         <div className="grid kpis">

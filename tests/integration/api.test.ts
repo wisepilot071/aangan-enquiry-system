@@ -298,6 +298,15 @@ describe("open access mode (AUTH_MODE=open, explicit opt-in)", () => {
       expect((await simulate(post("/api/simulate", { scenarioId: "T03" }))).status).toBe(201);
     });
   });
+  it("importing a call is allowed for the read-only role (it only reads from Vaani); placing a call is not", async () => {
+    await withMode({ AUTH_MODE: "open" }, async () => {
+      jar.clear();
+      const sync = (await import("@/app/api/calls/sync/route")).POST;
+      const outbound = (await import("@/app/api/calls/outbound/route")).POST;
+      expect((await sync(post("/api/calls/sync", { callId: "outbound-123456-abcdef" }))).status).toBe(409); // permitted, but Vaani is not configured in tests
+      expect((await outbound(post("/api/calls/outbound", { contactNumber: "+919876543210", name: "x", consent: true }))).status).toBe(403);
+    });
+  });
   it("login mode (the default) is unaffected", async () => {
     jar.clear();
     expect((await enquiriesGET(get("/api/enquiries"))).status).toBe(401);

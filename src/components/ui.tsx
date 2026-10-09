@@ -114,3 +114,24 @@ export function BarChart({ data, height = 160 }: { data: BarDatum[]; height?: nu
     </svg>
   );
 }
+
+export function Funnel({ steps }: { steps: { label: string; value: number }[] }) {
+  const max = Math.max(1, ...steps.map((s) => s.value));
+  return (
+    <div className="funnel" role="list" aria-label="Call funnel">
+      {steps.map((st) => (
+        <div className="step" role="listitem" key={st.label}>
+          <span>{st.label}</span>
+          <div className="bar" aria-hidden="true"><i style={{ width: `${Math.round((st.value / max) * 100)}%` }} /></div>
+          <span className="n">{st.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function HeroTile({ label, value, sub, tone = "navy", href }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "navy" | "teal" | "gold" | "alert"; href?: string }) {
+  const cls = `tile${tone === "navy" ? "" : ` ${tone}`}`;
+  const inner = <><div className="label">{label}</div><div className="value">{value}</div>{sub ? <div className="sub">{sub}</div> : null}</>;
+  return href ? <a className={cls} href={href}>{inner}</a> : <div className={cls}>{inner}</div>;
+}

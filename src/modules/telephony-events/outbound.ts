@@ -3,6 +3,8 @@ import { audit } from "@/modules/audit";
 import type { ProviderEvent, VoiceProvider } from "@/modules/voice-provider/types";
 import type { VaaniClient } from "@/modules/voice-provider/vaani-client";
 import { VaaniApiError } from "@/modules/voice-provider/vaani-client";
+import { enquiries } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { ingestEvent, type IngestOutcome } from "./ingest";
 
 /** E.164: "+", country code (1–9), up to 14 more digits. No spaces, dashes or brackets. */
@@ -70,4 +72,33 @@ export async function syncVaaniCall(db: Db, provider: VoiceProvider, callId: str
   }
   await audit(db, { actor, action: "call.sync_requested", entityType: "call", entityId: callId });
   return ingestEvent(db, "vaani", event, `sync:${callId}`);
+}
+
+/**
+ * Best-effort: lists recent calls from Vaani's call-history API and imports the finished ones we do not have yet.
+ * Vaani's call-history endpoint has been observed returning HTTP 500 on some accounts; that is reported, not hidden.
+ */
+export async function syncRecentCalls(db: Db, provider: VoiceProvider & { client?: VaaniClient | null }, actor: string) {
+  if (!provider.client) throw new OutboundError("not_supported", "This provider cannot list calls.", 501);
+  let rows;
+  try {
+    rows = (await provider.client.getCallHistory(1, 50)).data ?? [];
+  } catch (e) {
+    const err = e as VaaniApiError;
+    throw new OutboundError("vaani_history_unavailable",
+      `Vaani's call-history service is not responding${err.status ? ` (HTTP ${err.status})` : ""}. Import a call by its id instead (Vaani dashboard → call logs).`, 502);
+  }
+  const out = { found: rows.length, imported: 0, alreadyHad: 0, notReady: 0, failed: 0 };
+  for (const r of rows.slice(0, 25)) {
+    if (!r.call_id) continue;
+    const [have] = await db.select({ s: enquiries.callStatus }).from(enquiries).where(and(eq(enquiries.provider, "vaani"), eq(enquiries.providerCallId, r.call_id)));
+    if (have?.s === "completed") { out.alreadyHad++; continue; }
+    try {
+      const res = await syncVaaniCall(db, provider, r.call_id, actor);
+      if (res.status === "processed") out.imported++; else if (res.status === "duplicate") out.alreadyHad++; else out.failed++;
+    } catch (e) {
+      if (e instanceof OutboundError && e.code === "not_ready") out.notReady++; else out.failed++;
+    }
+  }
+  return out;
 }

@@ -11,10 +11,11 @@ async function post(url: string, body: unknown) {
   return { ok: res.ok, status: res.status, data };
 }
 
-export function CallsPanel({ agentConfigured }: { agentConfigured: boolean }) {
+export function CallsPanel({ agentConfigured, canCall }: { agentConfigured: boolean; canCall: boolean }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Msg>(null);
   const [synced, setSynced] = useState<Msg>(null);
+  const [recent, setRecent] = useState<Msg>(null);
   const [lastCall, setLastCall] = useState<string>("");
 
   async function place(e: React.FormEvent<HTMLFormElement>) {
@@ -36,33 +37,62 @@ export function CallsPanel({ agentConfigured }: { agentConfigured: boolean }) {
     setBusy("sync"); setSynced(null);
     const r = await post("/api/calls/sync", { callId });
     setBusy(null);
-    setSynced(r.ok ? { ok: true, text: r.data.status === "duplicate" ? "Already recorded — nothing changed." : "Call imported from Vaani." } : { ok: false, text: r.data.detail ?? r.data.error ?? "Could not import the call." });
+    setSynced(r.ok
+      ? { ok: true, text: r.data.status === "duplicate" ? "Already on the dashboard — nothing changed." : "Imported. It now appears under Enquiries." }
+      : { ok: false, text: r.data.detail ?? r.data.error ?? "Could not import the call." });
+  }
+
+  async function importRecent() {
+    setBusy("recent"); setRecent(null);
+    const r = await post("/api/calls/sync", { recent: true });
+    setBusy(null);
+    setRecent(r.ok
+      ? { ok: true, text: `Checked ${r.data.found} recent calls: ${r.data.imported} imported, ${r.data.alreadyHad} already here, ${r.data.notReady} still processing${r.data.failed ? `, ${r.data.failed} failed` : ""}.` }
+      : { ok: false, text: r.data.detail ?? r.data.error ?? "Could not list recent calls." });
   }
 
   return (
     <div className="grid two">
-      <form className="card grid" onSubmit={place} aria-label="Place a test call" style={{ alignContent: "start" }}>
-        <header><h2>Place a test call</h2></header>
-        <p className="muted small">Vaani&apos;s agent phones the number below so you can speak to it. Outbound test calls are recorded and costed, but are never counted as enquiries and never qualified.</p>
-        {!agentConfigured ? <p className="err" role="alert">No agent is configured. Run <span className="mono">npm run vaani:setup</span> and set VAANI_AGENT_ID.</p> : null}
-        <label>Person&apos;s name<input name="name" required maxLength={80} placeholder="e.g. Nikhil" /></label>
-        <label>Phone number (international format)<input name="number" required inputMode="tel" placeholder="+919876543210" pattern="\+?[0-9 \-]{9,20}" /></label>
-        <label className="row" style={{ flexDirection: "row", gap: 8, fontWeight: 500 }}>
-          <input style={{ width: "auto", minHeight: 0 }} type="checkbox" name="consent" required />This person has agreed to receive this call
-        </label>
-        <button className="btn" disabled={busy !== null || !agentConfigured}>{busy === "place" ? "Calling…" : "Place call"}</button>
-        {placed ? <p className={placed.ok ? "ok-text" : "err"} role="status">{placed.text}</p> : null}
-        <p className="muted small">Needs a phone number linked to the agent in Vaani (Settings → Telephony). Vaani&apos;s Do-Not-Disturb check stays on.</p>
-      </form>
-
-      <form className="card grid" onSubmit={sync} aria-label="Import a finished call" style={{ alignContent: "start" }}>
-        <header><h2>Import a finished call</h2></header>
-        <p className="muted small">Pulls the transcript, extracted answers, summary and cost from Vaani for a call id. Use it when this server has no public webhook address (local use) or a webhook was missed. Safe to repeat.</p>
-        <label>Vaani call id<input name="callId" required key={lastCall} defaultValue={lastCall} placeholder="outbound-1784899978-36cec598" /></label>
-        <button className="btn secondary" disabled={busy !== null}>{busy === "sync" ? "Importing…" : "Import call"}</button>
-        {synced ? <p className={synced.ok ? "ok-text" : "err"} role="status">{synced.text}</p> : null}
+      <section className="card grid" style={{ alignContent: "start" }} aria-labelledby="imp">
+        <header><h2 id="imp">Bring a call into the dashboard</h2></header>
+        <p className="muted small">
+          Made a call on Vaani (including a browser/WebRTC test) and it isn&apos;t here? Vaani only pushes calls to this dashboard once the
+          webhook is registered in Vaani (Settings → Webhooks). Until then, paste the call id from Vaani&apos;s call logs. It is safe to repeat.
+        </p>
+        <form onSubmit={sync} className="grid" aria-label="Import a finished call">
+          <label>Vaani call id<input name="callId" required key={lastCall} defaultValue={lastCall} placeholder="e.g. outbound-1784899978-36cec598" /></label>
+          <button className="btn" disabled={busy !== null}>{busy === "sync" ? "Importing…" : "Import this call"}</button>
+          {synced ? <p className={synced.ok ? "ok-text" : "err"} role="status">{synced.text}</p> : null}
+        </form>
+        <hr className="rule" />
+        <div className="grid">
+          <button className="btn secondary" onClick={importRecent} disabled={busy !== null}>{busy === "recent" ? "Checking Vaani…" : "Import recent calls automatically"}</button>
+          {recent ? <p className={recent.ok ? "ok-text" : "err"} role="status">{recent.text}</p> : null}
+          <p className="muted small">Uses Vaani&apos;s call-history service, which is currently failing on this account (Vaani-side error). If it says so, use the call id above.</p>
+        </div>
         <p className="small"><Link href="/enquiries?scope=production">See imported calls →</Link></p>
-      </form>
+      </section>
+
+      {canCall ? (
+        <form className="card grid" onSubmit={place} aria-label="Place a test call" style={{ alignContent: "start" }}>
+          <header><h2>Place a test call</h2></header>
+          <p className="muted small">Vaani&apos;s agent phones the number below so you can speak to it. Outbound test calls are recorded and costed, but never counted as enquiries and never qualified.</p>
+          {!agentConfigured ? <p className="err" role="alert">No agent is configured. Run <span className="mono">npm run vaani:setup</span> and set VAANI_AGENT_ID.</p> : null}
+          <label>Person&apos;s name<input name="name" required maxLength={80} placeholder="e.g. Nikhil" /></label>
+          <label>Phone number (international format)<input name="number" required inputMode="tel" placeholder="+919876543210" pattern="\+?[0-9 \-]{9,20}" /></label>
+          <label className="row" style={{ flexDirection: "row", gap: 8, fontWeight: 500 }}>
+            <input style={{ width: "auto", minHeight: 0 }} type="checkbox" name="consent" required />This person has agreed to receive this call
+          </label>
+          <button className="btn" disabled={busy !== null || !agentConfigured}>{busy === "place" ? "Calling…" : "Place call"}</button>
+          {placed ? <p className={placed.ok ? "ok-text" : "err"} role="status">{placed.text}</p> : null}
+          <p className="muted small">Needs a phone number linked to the agent in Vaani (Settings → Telephony). Vaani&apos;s Do-Not-Disturb check stays on.</p>
+        </form>
+      ) : (
+        <section className="card" style={{ alignContent: "start" }}>
+          <header><h2>Place a test call</h2></header>
+          <p className="muted">Placing calls is locked in open-access mode because there is no sign-in to identify who is calling. To enable it, set <span className="mono">OPEN_ACCESS_ROLE=operator</span> (only if the link stays private) or sign-in mode back on.</p>
+        </section>
+      )}
     </div>
   );
 }
