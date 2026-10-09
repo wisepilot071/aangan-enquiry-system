@@ -122,11 +122,11 @@ export function explain(i: ExplainInput): Explanation {
       };
     default:
       return {
-        headline: i.callStatus === "missed" ? "Missed call" : i.callStatus === "disconnected" ? "Call dropped" : i.callStatus === "failed" ? "Call failed" : "Call in progress or not yet processed",
+        headline: i.callStatus === "missed" ? "Missed call" : i.callStatus === "disconnected" ? "Call dropped" : i.callStatus === "failed" ? "Call failed" : "Call finished — transcript being prepared",
         tone: i.callStatus === "in_progress" ? "info" : "warn",
-        short: i.callStatus === "in_progress" ? "No decision yet (call not finished or still processing)" : `No decision: call ${i.callStatus ?? "unprocessed"}`,
-        summary: "There is no transcript, so nothing could be assessed.", checks: [],
-        nextStep: i.callStatus === "in_progress" ? "Wait a minute or two for the call to finish processing, or use “Import this call”." : "Follow up manually if this was a real caller; no automatic callback is made.",
+        short: i.callStatus === "in_progress" ? "Waiting for Vaani to prepare the transcript" : `No decision: call ${i.callStatus ?? "unprocessed"}`,
+        summary: i.callStatus === "in_progress" ? "The call has finished, but Vaani is still preparing its transcript and answers. This page fetches them automatically and fills in the decision as soon as they are ready." : "There is no transcript, so nothing could be assessed.", checks: [],
+        nextStep: i.callStatus === "in_progress" ? "Nothing to do: keep this page open and it will update by itself." : "Follow up manually if this was a real caller; no automatic callback is made.",
       };
   }
 }

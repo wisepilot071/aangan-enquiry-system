@@ -63,6 +63,7 @@ export function createVaaniProvider(cfg: VaaniProviderConfig = {}): VoiceProvide
       let out = event;
       try {
         const d: VaaniCallDetails = await client.getCallDetails(event.providerCallId);
+        if (d.status === "processing" || d.post_processing_status === "in_processing") throw new Error("still processing"); // keep the webhook's own data
         const entity = d.entity && typeof d.entity === "object" && Object.keys(d.entity).length ? d.entity : undefined;
         const transcript = typeof d.transcription === "string" ? parseVaaniTranscript(d.transcription) : [];
         out = {

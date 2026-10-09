@@ -23,6 +23,9 @@ export interface VaaniCallDetails {
   conversation_eval?: Record<string, unknown>;
   summary?: string;
   call_eval_tag?: string | null;
+  /** While post-processing runs Vaani answers HTTP 202 with { status: "processing", post_processing_status: "in_processing", retry_after }. */
+  status?: string;
+  post_processing_status?: string;
 }
 
 export interface VaaniCallHistoryRow {

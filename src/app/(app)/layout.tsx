@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/auth-server";
 import { getConfig } from "@/lib/config";
 import { LogoutButton, NavLinks, ScopeToggle, type NavItem } from "@/components/nav";
 import { getVoiceProvider } from "@/modules/voice-provider";
+import { PendingCalls } from "@/components/pending-calls";
+import { countPendingCalls } from "@/modules/telephony-events/outbound";
 import { can } from "@/modules/authentication";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const [{ r } = { r: 0 }] = await db.select({ r: sql<number>`count(*)::int` }).from(enquiries)
     .where(and(eq(enquiries.needsHumanReview, true), eq(enquiries.humanReviewStatus, "open"), eq(enquiries.direction, "inbound"), eq(enquiries.isDemo, cfg.mode === "mock")));
+  const pendingCalls = cfg.mode === "live" ? await countPendingCalls(db).catch(() => 0) : 0;
   const items: NavItem[] = [
     { href: "/", label: "Overview", icon: "◧" },
     { href: "/enquiries", label: "Enquiries", icon: "☰" },
@@ -36,6 +39,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       <aside className="side">
         <div className="brand"><div className="brand-mark" aria-hidden="true">A</div><div><b>Aangan Studio</b><span>Enquiry console</span></div></div>
         <Suspense fallback={null}><NavLinks items={items} /></Suspense>
+        <PendingCalls count={pendingCalls} />
         <div className="side-foot">
           <Suspense fallback={null}><ScopeToggle current={cfg.mode === "mock" ? "demo" : "production"} available={true} /></Suspense>
           {cfg.AUTH_MODE === "open" ? <span>Open access<br />Role: {user.role}</span> : <><span>{user.email}<br />Role: {user.role}</span><LogoutButton /></>}

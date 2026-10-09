@@ -4,7 +4,7 @@ import type { DbHandle } from "@/db/client";
 import { auditEvents, callEvents, costs, enquiries, followUpTasks, notifications } from "@/db/schema";
 import { getMetrics, getOutboundTestSummary, listEnquiries } from "@/modules/analytics/queries";
 import { ingestWebhook } from "@/modules/telephony-events/ingest";
-import { OutboundError, placeTestCall, syncRecentCalls, syncVaaniCall } from "@/modules/telephony-events/outbound";
+import { OutboundError, countPendingCalls, placeTestCall, syncPendingCalls, syncRecentCalls, syncVaaniCall } from "@/modules/telephony-events/outbound";
 import { createVaaniProvider } from "@/modules/voice-provider/vaani";
 import { VaaniApiError, createVaaniClient, type VaaniClient } from "@/modules/voice-provider/vaani-client";
 import { testDb } from "../helpers/db";
@@ -245,5 +245,53 @@ describe("importing recent calls from Vaani", () => {
     const p = provider({ getCallHistory: async () => { throw new VaaniApiError(500, "Vaani GET /api/call-history failed: Invalid client_id format", "server"); } });
     await expect(syncRecentCalls(h.db, p, "x")).rejects.toMatchObject({ code: "vaani_history_unavailable", status: 502 });
     await expect(syncRecentCalls(h.db, p, "x")).rejects.toThrow(/call logs/);
+  });
+});
+
+describe("self-healing: calls whose transcript is late", () => {
+  const started = async (id: string, ended = true) => {
+    const p = provider();
+    await send(p, { event: "call_started", room_name: id, status: "ringing", phone_number: "+919900777001" });
+    if (ended) await send(p, { event: "call_ended", room_name: id, call_duration: 90 });
+  };
+  const ready = async () => ({ transcription: TRANSCRIPT.replace(/\[[^\]]+\] /g, ""), entity: ENTITIES, summary: "Wants a redesign." });
+  const processing = async () => ({ status: "processing", post_processing_status: "in_processing", message: "Call post-processing in progress. Retry in a few seconds." });
+
+  it("counts finished-but-unprocessed calls, and keeps them 'in progress' while Vaani says it is still processing", async () => {
+    await started("webrtc-late-1");
+    const before = await countPendingCalls(h.db);
+    expect(before).toBeGreaterThanOrEqual(1);
+    const r = await syncPendingCalls(h.db, provider({ getCallDetails: processing as never }), "dashboard");
+    expect(r.imported).toBe(0);
+    expect(r.stillProcessing).toBeGreaterThanOrEqual(1);
+    const e = await row("webrtc-late-1");
+    expect(e).toMatchObject({ callStatus: "in_progress", disposition: null }); // never finalised early
+  });
+  it("as soon as Vaani has the transcript the call is qualified, notified, and no longer pending", async () => {
+    const p = provider({ getCallDetails: ready as never, getCallHistory: async () => ({ data: [] }) });
+    const r = await syncPendingCalls(h.db, p, "dashboard");
+    expect(r.imported).toBeGreaterThanOrEqual(1);
+    const e = await row("webrtc-late-1");
+    expect(e).toMatchObject({ callStatus: "completed", disposition: "QUALIFIED" });
+    expect((await h.db.select().from(notifications).where(eq(notifications.enquiryId, e.id))).map((n) => n.category)).toEqual(["qualified_handoff"]);
+    expect(await syncPendingCalls(h.db, p, "dashboard")).toMatchObject({ imported: 0 });
+  });
+  it("a webhook that arrives after the dashboard already imported the call is a harmless duplicate", async () => {
+    const r = await send(provider({ getCallDetails: ready as never }), post("webrtc-late-1"));
+    expect(r.status).toBe("duplicate");
+  });
+  it("calls that are brand new (not ended, under 3 minutes old) are left alone", async () => {
+    await started("webrtc-live-now", false);
+    const spy = vi.fn(async () => ({}));
+    await syncPendingCalls(h.db, provider({ getCallDetails: spy as never }), "dashboard");
+    const asked = spy.mock.calls.map((c) => (c as unknown as string[])[0]);
+    expect(asked).not.toContain("webrtc-live-now");
+  });
+  it("an unreachable Vaani counts as a failure, never as a finished call", async () => {
+    await started("webrtc-late-2");
+    const boom = async () => { throw new VaaniApiError(500, "x", "server"); };
+    const r = await syncPendingCalls(h.db, provider({ getCallDetails: boom as never }), "dashboard");
+    expect(r.failed + r.stillProcessing).toBeGreaterThanOrEqual(1);
+    expect(await row("webrtc-late-2")).toMatchObject({ callStatus: "in_progress" });
   });
 });
