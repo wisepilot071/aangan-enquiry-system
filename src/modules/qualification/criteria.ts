@@ -5,7 +5,7 @@ import {
 import type { Facts } from "./facts";
 import type { CriterionResult } from "./types";
 
-const lakh = (n: number) => `₹${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)} lakh`;
+const lakh = (n: number) => (n < 100_000 ? `₹${n.toLocaleString("en-IN")}` : `₹${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)} lakh`);
 
 /** Criterion 1 — a real design-and-execution project that is within Aangan's services. */
 export function assessRealProject(f: Facts): CriterionResult {
