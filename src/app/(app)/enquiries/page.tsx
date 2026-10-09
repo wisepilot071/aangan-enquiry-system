@@ -5,6 +5,7 @@ import { fmtDateTime, maskPhone, titleCase } from "@/lib/format";
 import { one, readScope, type SP } from "@/lib/page-scope";
 import { Badge, CallStatusBadge, DemoBadge, DispositionBadge, Empty, NotificationBadge, PriorityBadge } from "@/components/ui";
 import { listEnquiries } from "@/modules/analytics/queries";
+import { explain } from "@/modules/qualification/explain";
 import { enquiryRef } from "@/modules/notifications/format";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: Pr
         <div className="table-wrap">
           <table>
             <caption className="sr-only">Enquiries</caption>
-            <thead><tr><th>Enquiry</th><th>Caller</th><th>Project</th><th>Call</th><th>Qualification</th><th>Handoff</th></tr></thead>
+            <thead><tr><th>Enquiry</th><th>Caller</th><th>Project</th><th>Call</th><th>Decision &amp; why</th><th>Handoff</th></tr></thead>
             <tbody>
               {res.items.map((e) => (
                 <tr key={e.id}>
@@ -70,7 +71,7 @@ export default async function EnquiriesPage({ searchParams }: { searchParams: Pr
                   <td>{e.callerName ?? <span className="muted">Not provided</span>}<span className="sub mono">{maskPhone(e.callerPhone)}</span></td>
                   <td>{e.projectCategory ? titleCase(e.projectCategory) : "—"}{e.propertyType ? ` · ${titleCase(e.propertyType)}` : ""}<span className="sub">{e.locationText ?? "Location not captured"}</span></td>
                   <td><CallStatusBadge value={e.callStatus} /></td>
-                  <td><div className="row" style={{ gap: 6 }}><DispositionBadge value={e.disposition} />{e.priority !== "normal" ? <PriorityBadge value={e.priority} /> : null}{e.needsHumanReview ? <span className="badge warn"><span aria-hidden="true">👁</span>Review</span> : null}</div></td>
+                  <td><div className="row" style={{ gap: 6 }}><DispositionBadge value={e.disposition} />{e.priority !== "normal" ? <PriorityBadge value={e.priority} /> : null}{e.needsHumanReview ? <span className="badge warn"><span aria-hidden="true">👁</span>Review</span> : null}</div><span className="sub why">{e.decisionReason ?? explain({ disposition: e.disposition, criteria: [], callStatus: e.callStatus }).short}</span></td>
                   <td>{e.notifications.length ? <div className="row" style={{ gap: 4 }}>{e.notifications.map((n) => <NotificationBadge key={n.category} value={n.status} />)}</div> : <span className="muted small">None</span>}</td>
                 </tr>
               ))}

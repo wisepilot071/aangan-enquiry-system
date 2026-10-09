@@ -19,10 +19,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     .innerJoin(enquiries, eq(enquiries.id, followUpTasks.enquiryId))
     .where(and(eq(followUpTasks.status, "open"), eq(enquiries.isDemo, cfg.mode === "mock")));
 
+  const [{ r } = { r: 0 }] = await db.select({ r: sql<number>`count(*)::int` }).from(enquiries)
+    .where(and(eq(enquiries.needsHumanReview, true), eq(enquiries.humanReviewStatus, "open"), eq(enquiries.direction, "inbound"), eq(enquiries.isDemo, cfg.mode === "mock")));
   const items: NavItem[] = [
     { href: "/", label: "Overview", icon: "◧" },
     { href: "/enquiries", label: "Enquiries", icon: "☰" },
-    { href: "/urgent", label: "Urgent queue", icon: "▲", count: n },
+    { href: "/urgent", label: "Needs a person", icon: "▲", count: n + r },
     { href: "/costs", label: "Costs", icon: "₹" },
     ...(cfg.mode === "mock" && can(user.role, "operate") ? [{ href: "/simulator", label: "Call simulator", icon: "☏" }] : []),
     ...(cfg.mode === "live" ? [{ href: "/calls", label: "Vaani calls", icon: "☏" }] : []),
@@ -47,7 +49,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </div>
         ) : null}
         {cfg.AUTH_MODE === "open" ? (
-          <div className="banner warn" role="status"><b>⚠ Open access</b><span>There is no sign-in on this site: anyone with the link can view caller details{user.role === "viewer" ? " (read-only; transcripts, calls and settings are locked)" : " and operate it"}.</span></div>
+          <div className="banner warn" role="status"><b>⚠ Open access</b><span>There is no sign-in on this site: anyone with the link can view caller details{user.role === "viewer" ? " (read-only; transcripts, calls and settings are locked)" : user.role === "reviewer" ? ". Transcripts and review actions are open; placing calls and changing settings are locked" : " and operate it"}.</span></div>
         ) : null}
         {provider.state !== "ready" ? (
           <div className="banner warn" role="status"><b>⚠ Voice provider: {provider.state.replace(/_/g, " ")}</b><span>{provider.detail}</span></div>

@@ -8,6 +8,7 @@ import { ActionButton, EnquiryActions } from "@/components/actions";
 import { Badge, CallStatusBadge, CriterionBadge, DemoBadge, DispositionBadge, NotificationBadge, PriorityBadge } from "@/components/ui";
 import { can } from "@/modules/authentication";
 import { getEnquiryDetail } from "@/modules/enquiries/service";
+import { explain } from "@/modules/qualification/explain";
 import type { CriterionResult } from "@/modules/qualification/types";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
   const latest = d.assessments[0];
   const criteria = (latest?.criteria ?? []) as CriterionResult[];
   const operate = can(user.role, "operate");
+  const ex = explain({ disposition: d.disposition, criteria, uncertainties: (latest?.uncertainties ?? []) as string[], humanReviewReasons: d.humanReviewReasons as string[], callStatus: d.callStatus, escalationKind: d.escalationKind });
   const respSec = d.callStartedAt && d.firstResponseAt ? (d.firstResponseAt.getTime() - d.callStartedAt.getTime()) / 1000 : null;
   const transcript = (d.transcript ?? []) as { role: string; text: string }[];
   const val = (v: unknown) => (v === undefined || v === null || v === "" ? <span className="muted">Not provided</span> : String(v));
@@ -43,6 +45,29 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
       {d.direction === "outbound" ? <div className="banner ok" role="note"><b>↗ Outbound test call</b><span>The agent phoned this number. It is not an enquiry: it was not qualified, not handed to designers and is excluded from enquiry metrics. Cost is recorded below.</span></div> : null}
       {d.isDemo ? <div className="banner mock" role="note"><b>◈ DEMO</b><span>This is a simulated call. It is excluded from production reporting.</span></div> : null}
       {d.previous ? <div className="banner warn" role="note"><b>↻ Reconnect</b><span>Linked to the earlier dropped call <Link href={`/enquiries/${d.previous.id}`}>{d.previous.ref}</Link> — same verified number within 30 minutes. Records are linked, not merged.</span></div> : null}
+
+      <section className={`verdict ${ex.tone}`} aria-labelledby="verdict">
+        <div className="verdict-main">
+          <div className="verdict-kicker">Decision</div>
+          <h2 id="verdict">{ex.headline}</h2>
+          <p>{ex.summary}</p>
+          {d.summary ? <p className="verdict-call"><b>What happened on the call:</b> {d.summary}</p> : null}
+          <p className="verdict-next"><b>What to do next:</b> {ex.nextStep}</p>
+        </div>
+        {ex.checks.length ? (
+          <ul className="checks" aria-label="The five checks">
+            {ex.checks.map((c) => (
+              <li key={c.label}><CriterionBadge state={c.state} /><span><b>{c.label}.</b> {c.text}</span></li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section className="section" aria-labelledby="tx"><h2 id="tx">The conversation</h2>
+        {!can(user.role, "view_transcript") ? <div className="card muted">Transcripts are restricted to operators and admins.</div>
+          : !d.transcriptAvailable ? <div className="card muted">No transcript exists for this call{d.callStatus !== "completed" ? ` (${titleCase(d.callStatus).toLowerCase()})` : ""}. Nothing is invented.</div>
+            : <div className="card chat" aria-label="Call transcript">{transcript.map((t, i) => <div key={i} className={`bubble-row ${t.role}`}><small>{t.role === "agent" ? "Virtual assistant" : "Caller"}</small>{t.text}</div>)}</div>}
+      </section>
 
       <div className="grid two">
         <section className="card" aria-labelledby="info"><header><h2 id="info">Enquiry details</h2></header>
@@ -68,7 +93,7 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
           <dl className="kv">
             <dt>Call started</dt><dd>{fmtDateTime(d.callStartedAt)}</dd>
             <dt>First agent response</dt><dd>{d.firstResponseAt ? <>{fmtDateTime(d.firstResponseAt)} <span className="muted">({fmtDuration(respSec)} after start{respSec !== null && respSec <= 300 ? " · within 5 min" : ""})</span></> : <span className="muted">Not measurable (provider sent no response timestamp)</span>}</dd>
-            <dt>Call ended</dt><dd>{fmtDateTime(d.callEndedAt)} {d.durationSec !== null ? <span className="muted">· {fmtDuration(d.durationSec)}</span> : null}</dd>
+            <dt>Call ended</dt><dd>{fmtDateTime(d.callEndedAt)} {d.durationSec ? <span className="muted">· {fmtDuration(d.durationSec)}</span> : <span className="muted">· length not reported</span>}</dd>
             <dt>Record completed</dt><dd>{fmtDateTime(d.recordCompletedAt)}</dd>
             <dt>Designer notified</dt><dd>{d.notifiedAt ? fmtDateTime(d.notifiedAt) : <span className="muted">Not delivered</span>}</dd>
             <dt>Rule version</dt><dd className="mono">{d.ruleVersion ?? "—"}</dd>
@@ -76,8 +101,8 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
         </section>
       </div>
 
-      <section className="section" aria-labelledby="qual"><h2 id="qual">Qualification rationale</h2>
-        <p>Evidence-based explanation of each of Nikhil&apos;s five criteria. Decided by the rules engine, not the language model.</p>
+      <section className="section" aria-labelledby="qual"><h2 id="qual">The rules, in detail</h2>
+        <p>The evidence behind each of Nikhil&apos;s five checks, with the rule code. Decided by the rules engine, not by the voice model.</p>
         {d.disposition === "ESCALATED" ? <div className="banner bad" role="note"><b>▲ Sales qualification bypassed</b><span>This is an escalation to a human, not a sales lead. It was not forwarded to designers as a lead.</span></div> : null}
         {criteria.length ? (
           <div className="card">
@@ -131,11 +156,6 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
         )}
       </section>
 
-      <section className="section" aria-labelledby="tx"><h2 id="tx">Transcript</h2>
-        {!can(user.role, "view_transcript") ? <div className="card muted">Transcripts are restricted to operators and admins.</div>
-          : !d.transcriptAvailable ? <div className="card muted">No transcript exists for this call{d.callStatus !== "completed" ? ` (${titleCase(d.callStatus).toLowerCase()})` : ""}. Nothing is invented.</div>
-            : <div className="card chat" aria-label="Call transcript">{transcript.map((t, i) => <div key={i} className={`bubble-row ${t.role}`}><small>{t.role === "agent" ? "Virtual assistant" : "Caller"}</small>{t.text}</div>)}</div>}
-      </section>
 
       {operate ? (
         <section className="section" aria-labelledby="act"><h2 id="act">Operator actions</h2>

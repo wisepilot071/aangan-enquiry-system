@@ -46,6 +46,8 @@ export const enquiries = pgTable("enquiries", {
   summary: text("summary"),
   transcript: jsonb("transcript"), // restricted: admin/operator only
   disposition: text("disposition"), // null until assessed
+  /** One-line, plain-language reason for the decision (shown in lists). */
+  decisionReason: text("decision_reason"),
   priority: text("priority").notNull().default("normal"),
   needsHumanReview: boolean("needs_human_review").notNull().default(false),
   humanReviewReasons: jsonb("human_review_reasons").notNull().default([]),

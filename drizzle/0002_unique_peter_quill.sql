@@ -1,0 +1,1 @@
+ALTER TABLE "enquiries" ADD COLUMN "decision_reason" text;

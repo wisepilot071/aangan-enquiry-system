@@ -19,7 +19,7 @@ const Body = z.object({
 
 /** Places a real outbound TEST call via Vaani. Operator/admin only; live Vaani mode only. */
 export const POST = safe(async (req: Request) => {
-  const a = await apiUser(req, "operate", true);
+  const a = await apiUser(req, "call", true);
   if ("error" in a) return a.error;
   const vaani = getVaaniProvider();
   const agentId = getConfig().VAANI_AGENT_ID;

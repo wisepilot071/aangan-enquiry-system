@@ -74,7 +74,7 @@ export async function listEnquiries(db: Db, f: ListFilters) {
   const items = await db.select({
     id: enquiries.id, seq: enquiries.seq, isDemo: enquiries.isDemo, direction: enquiries.direction, callStatus: enquiries.callStatus, callStartedAt: enquiries.callStartedAt,
     createdAt: enquiries.createdAt, callerName: enquiries.callerName, callerPhone: enquiries.callerPhone, projectCategory: enquiries.projectCategory,
-    propertyType: enquiries.propertyType, locationText: enquiries.locationText, disposition: enquiries.disposition, priority: enquiries.priority,
+    propertyType: enquiries.propertyType, locationText: enquiries.locationText, disposition: enquiries.disposition, decisionReason: enquiries.decisionReason, priority: enquiries.priority,
     needsHumanReview: enquiries.needsHumanReview, consultationStatus: enquiries.consultationStatus, summary: enquiries.summary,
     firstResponseAt: enquiries.firstResponseAt,
   }).from(enquiries).where(and(...w)).orderBy(...order).limit(pageSize).offset((page - 1) * pageSize);
@@ -104,4 +104,14 @@ export async function getOutboundTestSummary(db: Db, scope: Scope, range: Range 
   const ids = rows.map((r) => r.id);
   const cost = ids.length ? await db.select().from(costs).where(inArray(costs.enquiryId, ids)) : [];
   return { calls: rows.length, completed: rows.filter((r) => r.callStatus === "completed").length, cost: summariseCosts(cost as CostRow[], 0) };
+}
+
+/** Enquiries a person has to look at: unresolved edge cases, unclear calls, flagged agent behaviour. */
+export async function getReviewQueue(db: Db, scope: Scope) {
+  return db.select({
+    id: enquiries.id, seq: enquiries.seq, isDemo: enquiries.isDemo, callerName: enquiries.callerName, callerPhone: enquiries.callerPhone,
+    locationText: enquiries.locationText, disposition: enquiries.disposition, decisionReason: enquiries.decisionReason, reasons: enquiries.humanReviewReasons,
+    summary: enquiries.summary, priority: enquiries.priority, callStartedAt: enquiries.callStartedAt, createdAt: enquiries.createdAt,
+  }).from(enquiries).where(and(eq(enquiries.isDemo, scope === "demo"), eq(enquiries.needsHumanReview, true), eq(enquiries.humanReviewStatus, "open"), eq(enquiries.direction, "inbound")))
+    .orderBy(sql`case ${enquiries.priority} when 'urgent' then 0 when 'high' then 1 else 2 end`, desc(enquiries.createdAt)).limit(100);
 }

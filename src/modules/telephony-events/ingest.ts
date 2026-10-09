@@ -8,6 +8,8 @@ import { dispatchNotification, createNotification, type DispatchDeps, type Notif
 import { enquiryRef, formatMissedCall, formatQualifiedHandoff, formatUrgentEscalation } from "@/modules/notifications/format";
 import { containsPricingLeak } from "@/modules/pricing-guardrails";
 import { assess } from "@/modules/qualification/engine";
+import { explain } from "@/modules/qualification/explain";
+import { NO_USABLE_DATA_REASON } from "@/modules/analytics/metrics";
 import { extractFacts } from "@/modules/qualification/extractor";
 import { FactsSchema, parseFacts, type Facts } from "@/modules/qualification/facts";
 import type { Assessment } from "@/modules/qualification/types";
@@ -246,7 +248,7 @@ async function applyEvent(
     projectCategory: facts.projectCategory ?? null, propertyType: facts.propertyType ?? null,
     locationText: facts.locationText ?? null, carpetAreaSqft: facts.carpetAreaSqft ? Math.round(facts.carpetAreaSqft) : null,
     transcript: transcriptRows, summary: event.summary ?? summarise(facts, assessment),
-    disposition: assessment.disposition, priority: guardrailNotes.length && assessment.priority === "normal" ? "high" : assessment.priority,
+    disposition: assessment.disposition, decisionReason: explain({ disposition: assessment.disposition, criteria: assessment.criteria, uncertainties: assessment.uncertainties, humanReviewReasons: reviewReasons, escalationKind: assessment.escalation?.kind }).short, priority: guardrailNotes.length && assessment.priority === "normal" ? "high" : assessment.priority,
     needsHumanReview: needsReview, humanReviewReasons: reviewReasons, humanReviewStatus: needsReview ? "open" : "none",
     consultationStatus: facts.consultationInterest ? "requested" : row.consultationStatus,
     escalationKind: assessment.escalation?.kind ?? null, escalationRecipient: assessment.escalation?.requestedRecipient ?? null,
@@ -292,6 +294,13 @@ async function applyEvent(
   return { status: "processed", enquiryId: row.id };
 }
 
+/** True when the call produced at least one substantive answer or a complaint/escalation signal. */
+function capturedAnything(f: Facts): boolean {
+  return Boolean(f.callerName || f.locationText || f.scopeKind || f.engagement || f.propertyType || f.projectCategory || f.roomCount || f.carpetAreaSqft
+    || f.needByWeeks !== undefined || f.desiredStartWeeks !== undefined || f.timelineFlexible || f.statedBudgetMaxInr || f.isComplaint || f.requestedHuman
+    || f.decisionMaker !== "unknown" || f.consultationInterest);
+}
+
 function summarise(f: Facts, a: Assessment): string {
   const bits = [f.projectCategory, f.propertyType?.replace(/_/g, " "), f.locationText, f.carpetAreaSqft ? `${f.carpetAreaSqft} sq ft` : null].filter(Boolean);
   return `${a.disposition.replace(/_/g, " ").toLowerCase()}${bits.length ? ` — ${bits.join(", ")}` : ""}`;
@@ -330,6 +339,11 @@ export function qualifyCompletedCall(event: ProviderEvent, providerId: "mock" | 
         humanReviewReasons: ["No usable data captured from the call."], priority: "high", nextQuestion: undefined } };
   }
   let assessment = assess(facts);
+  if (!capturedAnything(facts)) {
+    // e.g. unintelligible audio or the caller hung up: say so plainly instead of pretending a question was left open.
+    return { facts, notes, assessment: { ...assessment, disposition: "HUMAN_REVIEW", reasonCodes: ["NO_USABLE_DATA"], forwardToDesigner: false, humanReviewRequired: true,
+      humanReviewReasons: [NO_USABLE_DATA_REASON], priority: "normal", nextQuestion: undefined } };
+  }
   if (assessment.disposition === "NEEDS_CLARIFICATION") {
     assessment = { ...assessment, disposition: "HUMAN_REVIEW", forwardToDesigner: false, humanReviewRequired: true,
       humanReviewReasons: [`Call ended with an open question: "${assessment.nextQuestion?.text}"`, ...assessment.humanReviewReasons], priority: assessment.priority === "normal" ? "high" : assessment.priority };

@@ -134,7 +134,8 @@ describe("end-to-end over HTTP", () => {
     expect(overview).toContain("Not yet recorded");
     const detail = await (await api(`/enquiries/${qualifiedId}?scope=demo`)).text();
     expect(detail).toContain("SIMULATED — not delivered");
-    expect(detail).toContain("Qualification rationale");
+    expect(detail).toContain("Good lead — hand to a designer");
+    expect(detail).toContain("The rules, in detail");
     const urgent = await (await api("/urgent?scope=demo")).text();
     expect(urgent).toContain("Existing-client complaint");
     expect(urgent).toContain("Missed call");

@@ -48,7 +48,7 @@ export async function updateEnquiry(db: Db, id: string, actor: string, input: z.
   if (input.consultationStatus) patch.consultationStatus = input.consultationStatus;
   if (input.conversionStatus) patch.conversionStatus = input.conversionStatus;
   if (input.projectValueInr !== undefined) patch.projectValueInr = input.projectValueInr === null ? null : String(Math.round(input.projectValueInr));
-  if (input.disposition) patch.disposition = input.disposition;
+  if (input.disposition) { patch.disposition = input.disposition; patch.decisionReason = `Changed manually: ${input.reason}`.slice(0, 200); }
   await db.update(enquiries).set(patch).where(eq(enquiries.id, id));
   await audit(db, {
     actor, action: input.disposition ? "disposition.changed_manually" : "enquiry.updated_manually", entityType: "enquiry", entityId: id,

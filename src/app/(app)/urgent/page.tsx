@@ -5,7 +5,7 @@ import { fmtDateTime, maskPhone, titleCase } from "@/lib/format";
 import { readScope, type SP } from "@/lib/page-scope";
 import { ActionButton } from "@/components/actions";
 import { Badge, DemoBadge, Empty, PriorityBadge } from "@/components/ui";
-import { getUrgentQueue } from "@/modules/analytics/queries";
+import { getReviewQueue, getUrgentQueue } from "@/modules/analytics/queries";
 import { can } from "@/modules/authentication";
 import { enquiryRef } from "@/modules/notifications/format";
 
@@ -23,7 +23,8 @@ const KIND: Record<string, { label: string; tone: "bad" | "warn" | "info" | "neu
 export default async function UrgentPage({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await requireUser("view");
   const { scope } = readScope(await searchParams);
-  const tasks = await getUrgentQueue(await getDb(), scope);
+  const db = await getDb();
+  const [tasks, reviews] = await Promise.all([getUrgentQueue(db, scope), getReviewQueue(db, scope)]);
   const open = tasks.filter((t) => t.status === "open");
   const done = tasks.filter((t) => t.status !== "open");
   const operate = can(user.role, "operate");
@@ -47,11 +48,32 @@ export default async function UrgentPage({ searchParams }: { searchParams: Promi
       })}</tbody></table></div>
   );
 
+
+  const reviewTable = (
+    <div className="table-wrap"><table>
+      <caption className="sr-only">Calls needing a person to decide</caption>
+      <thead><tr><th>Call</th><th>Caller</th><th>Why a person is needed</th><th>What happened</th><th /></tr></thead>
+      <tbody>{reviews.map((r) => (
+        <tr key={r.id}>
+          <td><Link href={`/enquiries/${r.id}?scope=${scope}`}><b>{enquiryRef(r.seq)}</b></Link>{r.isDemo ? <> <DemoBadge /></> : null}<span className="sub">{fmtDateTime(r.callStartedAt ?? r.createdAt)}</span></td>
+          <td>{r.callerName ?? <span className="muted">Not captured</span>}<span className="sub mono">{maskPhone(r.callerPhone)}</span><span className="sub">{r.locationText ?? ""}</span></td>
+          <td>{r.decisionReason ?? "Needs review"}{Array.isArray(r.reasons) && (r.reasons as string[]).length ? <span className="sub">{(r.reasons as string[]).join(" ")}</span> : null}</td>
+          <td className="small">{r.summary ?? "—"}</td>
+          <td><Link className="btn small" href={`/enquiries/${r.id}?scope=${scope}`}>Open &amp; decide →</Link></td>
+        </tr>
+      ))}</tbody></table></div>
+  );
   return (
     <>
-      <div className="page-head"><div><h1>Urgent queue {scope === "demo" ? <DemoBadge /> : null}</h1>
+      <div className="page-head"><div><h1>Needs a person {scope === "demo" ? <DemoBadge /> : null}</h1>
         <p>Complaints, human requests, flagged callers, failed handoffs and missed or dropped calls that need a person. Nothing here is followed up automatically.</p></div></div>
-      {open.length === 0 ? <div className="card"><Empty title="Nothing waiting">All follow-ups are done. New escalations, missed calls and failed handoffs will appear here.</Empty></div> : table(open, true)}
+      <section aria-labelledby="rev"><h2 id="rev" style={{ marginBottom: 6 }}>Calls waiting for your decision ({reviews.length})</h2>
+        <p className="muted small" style={{ marginBottom: 10 }}>The rules could not decide, or nothing usable was captured. Open each one to read the conversation and the reason, then mark it resolved.</p>
+        {reviews.length === 0 ? <div className="card"><Empty title="No calls waiting for a decision">Calls that need a person will appear here.</Empty></div> : reviewTable}
+      </section>
+      <section className="section" aria-labelledby="fu"><h2 id="fu" style={{ marginBottom: 6 }}>Follow-ups ({open.length})</h2>
+        {open.length === 0 ? <div className="card"><Empty title="Nothing waiting">All follow-ups are done. New escalations, missed calls and failed handoffs will appear here.</Empty></div> : table(open, true)}
+      </section>
       {done.length ? <section className="section"><h2>Completed</h2><p>Most recent {done.length}.</p>{table(done, false)}</section> : null}
     </>
   );

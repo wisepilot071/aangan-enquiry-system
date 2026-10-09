@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { getConfig } from "@/lib/config";
 
-export type Role = "admin" | "operator" | "viewer";
+/** viewer: read-only · reviewer: + transcripts and review actions · operator: + place calls · admin: + settings */
+export type Role = "admin" | "operator" | "reviewer" | "viewer";
 export interface SessionUser { id: string; email: string; role: Role }
 
 export const SESSION_COOKIE = "aangan_session";
@@ -44,7 +45,7 @@ export async function verifySessionToken(token: string | undefined | null): Prom
   try {
     const { payload } = await jwtVerify(token, secretKey(), { algorithms: ["HS256"] });
     const role = payload.role;
-    if (typeof payload.sub !== "string" || typeof payload.email !== "string" || !["admin", "operator", "viewer"].includes(String(role))) return null;
+    if (typeof payload.sub !== "string" || typeof payload.email !== "string" || !["admin", "operator", "reviewer", "viewer"].includes(String(role))) return null;
     return { id: payload.sub, email: payload.email, role: role as Role };
   } catch {
     return null;
@@ -57,10 +58,11 @@ export function sessionCookieOptions() {
 
 /* ---------- authorisation ---------- */
 /** "import" = pull an existing call from the provider (read-only toward the provider, idempotent, no spend). */
-export type Action = "view" | "view_transcript" | "operate" | "admin" | "import";
+export type Action = "view" | "view_transcript" | "operate" | "admin" | "import" | "call";
 const MATRIX: Record<Role, Action[]> = {
-  admin: ["view", "view_transcript", "operate", "admin", "import"],
-  operator: ["view", "view_transcript", "operate", "import"],
+  admin: ["view", "view_transcript", "operate", "admin", "import", "call"],
+  operator: ["view", "view_transcript", "operate", "import", "call"],
+  reviewer: ["view", "view_transcript", "operate", "import"],
   viewer: ["view", "import"],
 };
 export const can = (role: Role | undefined, action: Action) => Boolean(role && MATRIX[role].includes(action));

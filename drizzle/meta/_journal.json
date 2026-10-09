@@ -15,6 +15,13 @@
       "when": 1791545266868,
       "tag": "0001_pretty_wallop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791569006757,
+      "tag": "0002_unique_peter_quill",
+      "breakpoints": true
     }
   ]
 }

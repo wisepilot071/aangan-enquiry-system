@@ -1,7 +1,7 @@
 /*
   Aangan Studio console — "Courtyard at dusk".
   Deep-navy rail, peacock-teal actions, marigold highlights on a cool paper canvas.
-  Light and dark themes follow the system setting.
+  Light theme only, by design: clear and high-contrast on any screen.
 */
 :root {
   --bg: #edf1f6;
@@ -37,16 +37,6 @@
   --font-display: "Segoe UI Variable Display", "Avenir Next", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0a111d; --bg-dots: #16213a; --surface: #111b2e; --surface-2: #17233a; --ink: #e8eef9; --ink-2: #9fb0cb; --line: #25334f;
-    --rail: #060c18; --rail-2: #0f1c33; --accent: #2cc6b4; --accent-ink: #04201c; --accent-soft: #0f3a38; --gold: #fbbf24; --gold-ink: #2b1d00; --gold-soft: #3a2e0c;
-    --ok: #6fdc9b; --ok-soft: #12351f; --warn: #f5b84f; --warn-soft: #3b2a0a; --bad: #ff8f86; --bad-soft: #3d1815;
-    --info: #8db4ff; --info-soft: #172a52; --demo: #c3adff; --demo-soft: #2a2050; color-scheme: dark;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.25);
-  }
-}
-
 * { box-sizing: border-box; }
 html, body { margin: 0; color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
 body { background-color: var(--bg); background-image: radial-gradient(var(--bg-dots) 1px, transparent 1px); background-size: 22px 22px; }
@@ -217,3 +207,20 @@ pre.msg { white-space: pre-wrap; background: var(--surface-2); border: 1px dashe
 /* ---------- login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: linear-gradient(135deg, var(--rail), var(--rail-2)); }
 .login .card { width: min(420px, 100%); display: grid; gap: 14px; }
+
+/* ---------- decision / verdict card ---------- */
+.verdict { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-left: 8px solid var(--ink-2); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; margin-bottom: 22px; }
+.verdict.ok { border-left-color: var(--ok); background: linear-gradient(90deg, var(--ok-soft), var(--surface) 55%); }
+.verdict.warn { border-left-color: var(--gold); background: linear-gradient(90deg, var(--gold-soft), var(--surface) 55%); }
+.verdict.bad { border-left-color: var(--bad); background: linear-gradient(90deg, var(--bad-soft), var(--surface) 55%); }
+.verdict.info { border-left-color: var(--info); background: linear-gradient(90deg, var(--info-soft), var(--surface) 55%); }
+.verdict-main { display: grid; gap: 10px; align-content: start; }
+.verdict-kicker { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; color: var(--ink-2); }
+.verdict h2 { font-size: 1.55rem; line-height: 1.2; }
+.verdict p { font-size: 0.97rem; }
+.verdict-call { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.verdict-next { color: var(--ink); }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; align-content: start; }
+.checks li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 0.9rem; }
+.why { font-weight: 500; max-width: 38ch; }
+@media (max-width: 900px) { .verdict { grid-template-columns: 1fr; padding: 18px; } }
