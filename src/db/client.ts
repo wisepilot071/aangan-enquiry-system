@@ -36,7 +36,7 @@ export function createPgliteHandle(dataDir?: string): DbHandle {
 }
 
 export function createPostgresHandle(url: string): DbHandle {
-  const pool = new Pool({ connectionString: url, max: 10, connectionTimeoutMillis: 5000, statement_timeout: 15000 });
+  const pool = new Pool({ connectionString: url, max: Number(process.env.PG_POOL_MAX) || 3, connectionTimeoutMillis: 5000, statement_timeout: 15000 });
   const db = drizzlePg(pool, { schema }) as unknown as Db;
   return {
     db, kind: "postgres",
