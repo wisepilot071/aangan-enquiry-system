@@ -199,10 +199,10 @@ describe("agent definition (what Vaani's model is told)", () => {
     expect(SYSTEM_PROMPT).toContain("This sounds like it may not be the right fit for us right now — but feel free to reach out if your timeline or scope changes.");
   });
   it("is humble, respectful and concise by instruction; forbids budget questions, bookings, callback promises and transfers", () => {
-    for (const must of ["Humble, very respectful, and to the point", "ONE question at a time", "Never ask about budget", "Never say a consultation", "Never promise a callback time", "virtual assistant"]) {
+    for (const must of ["HUMBLE, WARM AND COURTEOUS", "ONE polite question", "May I please ask", "Never sound rushed, impatient, abrupt", "Never ask about budget", "Never say a consultation", "Never promise a callback time", "virtual assistant", "Thank you very much for calling Aangan Studio"]) {
       expect(SYSTEM_PROMPT, must).toContain(must);
     }
-    expect(GREETING).toBe("Hello, you've reached Aangan Studio. I'm the studio's virtual assistant. How may I help you today?");
+    expect(GREETING).toBe("Namaste, and a warm welcome to Aangan Studio. I am the studio's virtual assistant, and it is a pleasure to speak with you. How may I help you today, please?");
   });
   it("carries no internal price data, budget floors or per-sq-ft figures", () => {
     const withoutApproved = SYSTEM_PROMPT.replace(APPROVED_PRICING_RESPONSE, "");

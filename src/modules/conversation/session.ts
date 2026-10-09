@@ -5,7 +5,7 @@ import { FactsSchema, type Facts } from "../qualification/facts";
 import type { Assessment } from "../qualification/types";
 
 export const OPENING_MESSAGE =
-  "Hello, you've reached Aangan Studio. I'm the studio's virtual assistant. How may I help you today?";
+  "Namaste, and a warm welcome to Aangan Studio. I am the studio's virtual assistant, and it is a pleasure to speak with you. How may I help you today, please?";
 
 export interface Turn {
   role: "agent" | "caller";
