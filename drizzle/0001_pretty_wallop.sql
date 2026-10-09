@@ -1,0 +1,2 @@
+ALTER TABLE "enquiries" ADD COLUMN "direction" text DEFAULT 'inbound' NOT NULL;--> statement-breakpoint
+ALTER TABLE "enquiries" ADD CONSTRAINT "enquiries_direction_ck" CHECK ("enquiries"."direction" in ('inbound','outbound'));

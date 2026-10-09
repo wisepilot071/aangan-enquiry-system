@@ -1,0 +1,22 @@
+/** Plain-language definitions shown as tooltips; the full formulas are in docs/metrics.md. */
+export const HELP = {
+  totalCalls: "Unique incoming provider call IDs in the period. Duplicate webhook deliveries are never counted twice.",
+  handled: "Completed calls that produced a usable outcome (a disposition other than 'no usable data'). Connected-but-empty calls are excluded.",
+  missedFailed: "Missed or provider-failed calls. Shown separately from disconnected calls (the caller dropped mid-call).",
+  qualified: "Calls whose five-criteria assessment (Nikhil's rubric) ended as Qualified and eligible for a designer handoff.",
+  unqualified: "Calls closed gracefully without forwarding (one clear failure) or declined (two or more).",
+  qualifiedRate: "Qualified ÷ (Qualified + Unqualified). Escalations, clarifications and human-review cases are not counted as either success or failure; the denominator is shown.",
+  review: "Enquiries a person needs to look at: unresolved edge cases, unclear answers after one question, or flagged callers.",
+  urgent: "Existing-client complaints and similar escalations (priority = urgent).",
+  firstResponse: "Call start → first agent speech, using provider-reported timestamps only. Calls without both timestamps are 'unmeasurable' and are not guessed.",
+  fiveMin: "Calls with a first response within 5 minutes ÷ calls with reliable timestamps. The stricter figure also counts missed/failed calls as not answered.",
+  handoff: "Telegram handoffs delivered ÷ (delivered + failed + unavailable). Pending and simulated deliveries are excluded.",
+  actualCost: "Provider-reported cost for calls in the period. Never mixed with estimates.",
+  estimatedCost: "Verified unit rate × billed minutes (rate source shown). An estimate, not an invoice.",
+  unknownCost: "Calls where neither a provider cost nor a verified rate exists. Unknown is not zero and is never added to totals.",
+  perCall: "Known cost ÷ calls that have that kind of cost recorded.",
+  perQualified: "Known cost for the period ÷ qualified leads in the period. N/A when there are no qualified leads or no known cost.",
+  consultation: "'Requested' means the caller asked for a consultation. Only 'Confirmed' means a person has actually booked it.",
+  conversion: "Converted ÷ (converted + lost) among enquiries with a recorded outcome. Qualified does not mean converted.",
+  revenue: "Sum of actual project values recorded against converted enquiries. Never derived from the case's average project value.",
+} as const;

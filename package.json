@@ -1,0 +1,50 @@
+{
+  "name": "aangan-enquiry-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aangan Studio AI phone enquiry system (MESA Case 03)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env scripts/seed.ts",
+    "admin:hash": "tsx --env-file-if-exists=.env scripts/hash-password.ts",
+    "verify:seed": "tsx --env-file-if-exists=.env scripts/verify-seed.ts",
+    "privacy": "tsx --env-file-if-exists=.env scripts/privacy.ts",
+    "vaani:setup": "tsx --env-file-if-exists=.env scripts/vaani-setup.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "drizzle-orm": "^0.45.4",
+    "jose": "^6.2.12",
+    "next": "^16.4.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.15",
+    "typescript": "5.9",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}
