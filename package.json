@@ -19,7 +19,8 @@
     "admin:hash": "tsx --env-file-if-exists=.env scripts/hash-password.ts",
     "verify:seed": "tsx --env-file-if-exists=.env scripts/verify-seed.ts",
     "privacy": "tsx --env-file-if-exists=.env scripts/privacy.ts",
-    "vaani:setup": "tsx --env-file-if-exists=.env scripts/vaani-setup.ts"
+    "vaani:setup": "tsx --env-file-if-exists=.env scripts/vaani-setup.ts",
+    "telegram:webhook": "tsx --env-file-if-exists=.env scripts/telegram-webhook.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
