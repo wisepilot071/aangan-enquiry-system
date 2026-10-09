@@ -27,7 +27,7 @@ export const isOutboundId = (id: string) => /^outbound/i.test(id);
 export function mapVaaniWebhook(payload: unknown, now: Date): VaaniMapResult {
   if (!isObj(payload)) return { kind: "invalid", reason: "payload_not_an_object" };
   const name = str(payload.event);
-  if (!name) return { kind: "invalid", reason: "missing_event_name" };
+  if (!name) return { kind: "ignored", note: "payload without an event name acknowledged (for example a connectivity test)" };
   const at = now.toISOString();
 
   if (name === "call_postprocessing") {

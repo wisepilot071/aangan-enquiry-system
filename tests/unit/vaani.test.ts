@@ -53,7 +53,7 @@ describe("Vaani webhook mapping (payload shapes from docs.vaanivoice.ai → Webh
   it("invalid payloads are rejected", () => {
     expect(map(null)).toMatchObject({ kind: "invalid" });
     expect(map([])).toMatchObject({ kind: "invalid" });
-    expect(map({ room_name: "r" })).toMatchObject({ kind: "invalid", reason: "missing_event_name" });
+    expect(map({ room_name: "r" })).toMatchObject({ kind: "ignored" }); // e.g. a "test connectivity" ping
     expect(map({ event: "call_started" })).toMatchObject({ kind: "invalid", reason: "missing_room_name" });
     expect(map({ event: "call_postprocessing", data: {} })).toMatchObject({ kind: "invalid", reason: "missing_call_id" });
   });
