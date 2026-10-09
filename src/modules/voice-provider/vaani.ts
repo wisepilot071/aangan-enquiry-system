@@ -58,7 +58,7 @@ export function createVaaniProvider(cfg: VaaniProviderConfig = {}): VoiceProvide
       if (m.kind === "ignored") return { ok: true, ignored: true, note: m.note };
       return { ok: true, event: m.event };
     },
-    async enrichEvent(event): Promise<ProviderEvent> {
+    async enrichEvent(event, opts): Promise<ProviderEvent> {
       if (!client || event.type !== "call.completed") return event;
       let out = event;
       try {
@@ -72,7 +72,17 @@ export function createVaaniProvider(cfg: VaaniProviderConfig = {}): VoiceProvide
           ...(entity ? { structuredFacts: entitiesToFacts(entity, new Date(out.occurredAt)) } : {}),
           ...(typeof d.summary === "string" && d.summary && !/not available/i.test(d.summary) ? { summary: d.summary.slice(0, 4000) } : {}),
         };
-      } catch { /* keep the webhook's own (token-protected) data */ }
+      } catch {
+        // Vaani's analysis is still running (or failed). The raw transcript is available independently; use it only when asked,
+        // because answers must then be read from it by our own rules and are flagged for a person to verify.
+        if (opts?.transcriptFallback && !out.transcript?.length) {
+          try {
+            const t = await client.getTranscript(event.providerCallId);
+            const turns = typeof t.transcript === "string" ? parseVaaniTranscript(t.transcript) : [];
+            if (turns.length) out = { ...out, transcript: turns, transcriptOnly: true, structuredFacts: undefined };
+          } catch { /* stays unprocessed */ }
+        }
+      }
       try {
         const hist = await client.getCallHistory(1, 50);
         const row = hist.data?.find((r) => r.call_id === event.providerCallId);

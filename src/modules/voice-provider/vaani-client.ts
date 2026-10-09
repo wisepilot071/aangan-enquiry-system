@@ -79,6 +79,8 @@ export function createVaaniClient(opts: VaaniClientOptions) {
         dnd_check_skipped: input.dndCheckSkipped ?? false,
         ...(input.modifyAgent ? { modify_agent: input.modifyAgent } : {}), ...(input.metadata ? { metadata: input.metadata } : {}),
       }),
+    /** Works even while Vaani's analysis ("post-processing") of the call is still running. */
+    getTranscript: (callId: string) => request<{ transcript?: string }>("GET", `/api/transcript/${encodeURIComponent(callId)}`),
     getCallDetails: (callId: string) => request<VaaniCallDetails>("GET", `/api/call_details/${encodeURIComponent(callId)}`),
     getCallHistory: (page = 1, pageSize = 50) => request<{ data: VaaniCallHistoryRow[] }>("GET", `/api/call-history?page=${page}&page_size=${pageSize}`),
   };

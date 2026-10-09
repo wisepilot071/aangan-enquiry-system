@@ -85,12 +85,12 @@ export function mapVaaniWebhook(payload: unknown, now: Date): VaaniMapResult {
 
 /** Handles "[HH:MM:SS] AGENT: …" (webhook) and plain "AGENT: … USER: …" (call_details) transcripts. */
 export function parseVaaniTranscript(text: string): { role: "agent" | "caller"; text: string }[] {
-  const re = /(?:\[\d{1,2}:\d{2}(?::\d{2})?\]\s*)?\b(AGENT|USER)\s*:\s*/g;
+  const re = /(?:\[[^\]\n]{4,30}\]\s*)?\b(AGENT|USER)\s*:\s*/g;
   const marks: { role: "agent" | "caller"; start: number; end: number }[] = [];
   for (let m = re.exec(text); m; m = re.exec(text)) marks.push({ role: m[1] === "AGENT" ? "agent" : "caller", start: m.index, end: re.lastIndex });
   const out: { role: "agent" | "caller"; text: string }[] = [];
   marks.forEach((mk, i) => {
-    const body = text.slice(mk.end, i + 1 < marks.length ? marks[i + 1]!.start : undefined).replace(/\s+/g, " ").trim();
+    const body = text.slice(mk.end, i + 1 < marks.length ? marks[i + 1]!.start : undefined).replace(/\binterrupted:\s*(?:true|false)\b/gi, " ").replace(/\s+/g, " ").replace(/\s+([.,!?])/g, "$1").trim();
     if (body) out.push({ role: mk.role, text: body.slice(0, 4000) });
   });
   return out.slice(0, 500);

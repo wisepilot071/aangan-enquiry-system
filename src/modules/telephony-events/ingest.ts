@@ -322,8 +322,8 @@ export function qualifyCompletedCall(event: ProviderEvent, providerId: "mock" | 
     if (p.ok) { facts = p.facts; haveData = true; }
     else notes.push(`Provider structured output was invalid and was ignored (${p.error.slice(0, 120)}).`);
   }
-  if (!haveData && event.transcript?.length && providerId === "mock") {
-    // MOCK mode only: the deterministic extractor. Live providers must supply validated structured facts.
+  if (!haveData && event.transcript?.length && (providerId === "mock" || event.transcriptOnly)) {
+    // Deterministic extractor: used for the mock provider, and for live calls whose provider analysis was late (flagged below).
     const now = new Date(event.startedAt ?? event.occurredAt);
     let lastQ: string | undefined;
     for (const t of event.transcript) {
@@ -340,6 +340,11 @@ export function qualifyCompletedCall(event: ProviderEvent, providerId: "mock" | 
         humanReviewReasons: ["No usable data captured from the call."], priority: "high", nextQuestion: undefined } };
   }
   let assessment = assess(facts);
+  if (event.transcriptOnly) {
+    const caveat = "Vaani's analysis of this call was delayed, so the answers were read from the transcript by our own rules. Please check the details.";
+    notes.push(caveat);
+    assessment = { ...assessment, humanReviewReasons: [...assessment.humanReviewReasons, caveat] };
+  }
   if (!capturedAnything(facts)) {
     // e.g. unintelligible audio or the caller hung up: say so plainly instead of pretending a question was left open.
     return { facts, notes, assessment: { ...assessment, disposition: "HUMAN_REVIEW", reasonCodes: ["NO_USABLE_DATA"], forwardToDesigner: false, humanReviewRequired: true,

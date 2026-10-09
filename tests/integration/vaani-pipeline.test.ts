@@ -295,3 +295,38 @@ describe("self-healing: calls whose transcript is late", () => {
     expect(await row("webrtc-late-2")).toMatchObject({ callStatus: "in_progress" });
   });
 });
+
+describe("late analysis from Vaani: transcript fallback", () => {
+  const RAW = "[2026-10-09 18:52:05] AGENT: Namaste.\n interrupted: False\n\n[2026-10-09 18:52:16] USER: Hello. I'm Meera Rao. I want to redo my flat, a three BHK, complete redesign with execution.\n interrupted: False\n\n[2026-10-09 18:52:40] USER: It is in Baner, Pune. We need it by January and I am the owner.\n interrupted: False";
+  const processing = async () => ({ status: "processing", post_processing_status: "in_processing" });
+  const mk = () => provider({ getCallDetails: processing as never, getTranscript: async () => ({ transcript: RAW }), getCallHistory: async () => ({ data: [] }) });
+  const old = async (id: string, endedMinutesAgo: number) => {
+    await send(provider(), { event: "call_started", room_name: id, phone_number: "+919900888001" });
+    await send(provider(), { event: "call_ended", room_name: id, call_duration: 100 });
+    await h.db.update(enquiries).set({ callEndedAt: new Date(Date.now() - endedMinutesAgo * 60_000) }).where(eq(enquiries.providerCallId, id));
+  };
+
+  it("waits for Vaani's own analysis for the first minutes (no fallback yet)", async () => {
+    await old("webrtc-fb-young", 2);
+    const r = await syncPendingCalls(h.db, mk(), "dashboard");
+    expect(r.imported).toBe(0);
+    expect(await row("webrtc-fb-young")).toMatchObject({ callStatus: "in_progress", disposition: null });
+  });
+  it("after ~4 minutes it reads the transcript, qualifies the call, flags it for checking, and the designers are told", async () => {
+    await old("webrtc-fb-old", 6);
+    const r = await syncPendingCalls(h.db, mk(), "dashboard");
+    expect(r.imported).toBeGreaterThanOrEqual(1);
+    const e = await row("webrtc-fb-old");
+    expect(e).toMatchObject({ callStatus: "completed", disposition: "QUALIFIED", callerName: "Meera Rao", needsHumanReview: true });
+    expect((e.humanReviewReasons as string[]).join(" ")).toMatch(/read from the transcript/);
+    const n = await h.db.select().from(notifications).where(eq(notifications.enquiryId, e.id));
+    expect(n.map((x) => x.category)).toEqual(["qualified_handoff"]);
+    expect(n[0]!.messagePreview).toMatch(/Please check the details/);
+  });
+  it("a manual import (the person clicked it) uses the fallback immediately", async () => {
+    await old("webrtc-fb-manual", 1);
+    const r = await syncVaaniCall(h.db, mk(), "webrtc-fb-manual", "someone");
+    expect(r.status).toBe("processed");
+    expect((await row("webrtc-fb-manual")).disposition).toBe("QUALIFIED");
+  });
+});

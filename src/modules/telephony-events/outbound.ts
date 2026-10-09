@@ -59,14 +59,14 @@ export async function placeTestCall(
  * Pulls a finished call from Vaani's API and ingests it, for local development (no public webhook URL) or when a
  * webhook was missed. Safe to repeat: an already-completed call is reported as a duplicate.
  */
-export async function syncVaaniCall(db: Db, provider: VoiceProvider, callId: string, actor: string): Promise<IngestOutcome> {
+export async function syncVaaniCall(db: Db, provider: VoiceProvider, callId: string, actor: string, opts: { transcriptFallback?: boolean } = { transcriptFallback: true }): Promise<IngestOutcome> {
   if (!/^[A-Za-z0-9_-]{6,120}$/.test(callId)) throw new OutboundError("invalid_call_id", "That does not look like a Vaani call id.");
   if (!provider.enrichEvent) throw new OutboundError("not_supported", "This provider cannot be synced.", 501);
   const base: ProviderEvent = {
     type: "call.completed", direction: /^outbound/i.test(callId) ? "outbound" : "inbound", providerCallId: callId,
     occurredAt: new Date().toISOString(),
   };
-  const event = await provider.enrichEvent(base);
+  const event = await provider.enrichEvent(base, { transcriptFallback: opts.transcriptFallback });
   if (!event.transcript?.length) { // a call is only final once Vaani has produced its transcript
     throw new OutboundError("not_ready", "Vaani has no transcript for this call yet (post-processing may still be running, or the id is wrong). Try again in a minute.", 409);
   }
@@ -117,14 +117,16 @@ export async function countPendingCalls(db: Db): Promise<number> {
  * Safe to run from several browsers at once (ingestion is idempotent) and cheap when nothing is pending.
  */
 export async function syncPendingCalls(db: Db, provider: VoiceProvider, actor: string) {
-  const rows = await db.select({ id: enquiries.providerCallId }).from(enquiries).where(and(
+  const rows = await db.select({ id: enquiries.providerCallId, endedAt: enquiries.callEndedAt, createdAt: enquiries.createdAt }).from(enquiries).where(and(
     eq(enquiries.provider, "vaani"), eq(enquiries.isDemo, false), eq(enquiries.callStatus, "in_progress"),
     gt(enquiries.createdAt, new Date(Date.now() - 24 * 3600_000)), sql`(${enquiries.callEndedAt} is not null or ${enquiries.createdAt} < now() - interval '3 minutes')`,
   )).orderBy(desc(enquiries.createdAt)).limit(4);
   const out = { pending: rows.length, imported: 0, stillProcessing: 0, failed: 0 };
   for (const r of rows) {
     try {
-      const res = await syncVaaniCall(db, provider, r.id, actor);
+      // Give Vaani's own analysis ~4 minutes after the call ended; after that, fall back to reading the transcript.
+      const waitedMs = Date.now() - (r.endedAt ?? r.createdAt).getTime();
+      const res = await syncVaaniCall(db, provider, r.id, actor, { transcriptFallback: waitedMs > 4 * 60_000 });
       if (res.status === "processed") out.imported++; else if (res.status !== "duplicate") out.failed++;
     } catch (e) {
       if (e instanceof OutboundError && e.code === "not_ready") out.stillProcessing++; else out.failed++;

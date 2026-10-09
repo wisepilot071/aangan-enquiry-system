@@ -29,6 +29,8 @@ export const ProviderEventSchema = z.object({
     text: z.string().max(4000),
     at: iso.optional(),
   })).max(500).optional(),
+  /** True when only the raw transcript was available (the provider's analysis was late), so answers must be read from it. */
+  transcriptOnly: z.boolean().optional(),
   /** Provider/LLM structured extraction. Untrusted: validated with FactsSchema before use. */
   structuredFacts: z.unknown().optional(),
   summary: z.string().max(4000).optional(),
@@ -71,7 +73,7 @@ export interface VoiceProvider {
   verifyWebhook(input: { rawBody: string; headers: Headers | Record<string, string | undefined>; now: Date; url?: string }): VerifyResult;
   parseEvent(rawBody: string): ParseResult;
   /** Optional: pull authoritative data from the provider's API (best effort, must never throw). */
-  enrichEvent?(event: ProviderEvent): Promise<ProviderEvent>;
+  enrichEvent?(event: ProviderEvent, opts?: { transcriptFallback?: boolean }): Promise<ProviderEvent>;
 }
 
 export function header(h: Headers | Record<string, string | undefined>, name: string): string | undefined {
