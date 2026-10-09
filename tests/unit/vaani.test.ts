@@ -226,3 +226,17 @@ describe("agent definition (what Vaani's model is told)", () => {
     expect(buildAgentConfig().persona.identity).toMatchObject({ system_prompt: SYSTEM_PROMPT, greeting_message: { agent_message: GREETING } });
   });
 });
+
+describe("diagnosing unknown webhook payloads without storing content", () => {
+  it("payloadShape lists field names and value types only", async () => {
+    const { payloadShape } = await import("@/modules/telephony-events/ingest");
+    const shape = payloadShape(JSON.stringify({ event: "test", data: { phone: "+919876543210", secret_note: "PRIVATE", n: 5, list: [1, 2] }, ok: true }));
+    expect(shape).toBe("{event:string,data:{phone:string,secret_note:string,n:number,list:array(2)},ok:boolean}");
+    expect(shape).not.toMatch(/PRIVATE|9876543210/);
+    expect(payloadShape("{oops")).toBe("not-json");
+  });
+  it("a call id nested under data is accepted", () => {
+    const r = mapVaaniWebhook({ event: "call_started", data: { room_name: "room-nested-1" } }, NOW);
+    expect(r).toMatchObject({ kind: "event", event: { providerCallId: "room-nested-1" } });
+  });
+});

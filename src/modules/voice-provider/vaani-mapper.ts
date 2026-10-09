@@ -48,7 +48,9 @@ export function mapVaaniWebhook(payload: unknown, now: Date): VaaniMapResult {
     } };
   }
 
-  const id = str(payload.room_name) ?? str(payload.call_id);
+  // The documented realtime payloads carry room_name at the top level; also accept it (or call_id) inside "data" in case a variant nests it.
+  const nested = isObj(payload.data) ? payload.data : {};
+  const id = str(payload.room_name) ?? str(payload.call_id) ?? str(nested.room_name) ?? str(nested.call_id);
   if (!id) return { kind: "invalid", reason: "missing_room_name" };
   const direction = isOutboundId(id) ? "outbound" : "inbound";
   const base = { providerCallId: id, occurredAt: at, direction } as const;

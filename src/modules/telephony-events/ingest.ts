@@ -38,10 +38,24 @@ const statusFor: Record<ProviderEvent["type"], string> = {
   "call.missed": "missed", "call.disconnected": "disconnected", "call.failed": "failed",
 };
 
+/** Describes a JSON payload by field names and value types only — never values — so rejections can be diagnosed without storing content. */
+export function payloadShape(raw: string, depth = 0): string {
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch { return "not-json"; }
+  const walk = (x: unknown, d: number): string => {
+    if (x === null) return "null";
+    if (Array.isArray(x)) return `array(${x.length})`;
+    if (typeof x !== "object") return typeof x;
+    if (d >= 2) return "object";
+    return `{${Object.entries(x as Record<string, unknown>).slice(0, 30).map(([k, val]) => `${k.slice(0, 40)}:${walk(val, d + 1)}`).join(",")}}`;
+  };
+  return walk(v, depth).slice(0, 600);
+}
+
 async function recordRejected(db: Db, provider: string, rawBody: string, reason: string, now: Date, type = "unknown") {
   await db.insert(callEvents).values({
     provider, eventKey: `rejected:${sha(rawBody)}:${now.getTime()}:${crypto.randomUUID()}`, eventType: type,
-    status: "rejected", errorCategory: reason, errorDetail: `payload ${rawBody.length} bytes, content not stored`,
+    status: "rejected", errorCategory: reason, errorDetail: `payload ${rawBody.length} bytes, content not stored; shape ${payloadShape(rawBody)}`,
     isDemo: provider === "mock",
   });
   await audit(db, { actor: "provider", action: "webhook.rejected", entityType: "call_event", detail: { provider, reason } });
