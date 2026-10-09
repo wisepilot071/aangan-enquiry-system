@@ -14,6 +14,10 @@ const EnvSchema = z.object({
   ADMIN_PASSWORD_HASH: opt(z.string()),
   /** mock | vaani — "vaani" is pending until the exact product/API is verified. */
   VOICE_PROVIDER: z.enum(["mock", "vaani"]).default("mock"),
+  /** "login" (default): email + password. "open": NO sign-in — anyone with the URL gets the role below. */
+  AUTH_MODE: z.enum(["login", "open"]).default("login"),
+  /** Role everyone gets in open mode. viewer = read-only (no transcripts, no calls, no settings). */
+  OPEN_ACCESS_ROLE: z.enum(["viewer", "operator", "admin"]).default("viewer"),
   /** Shared secret for HMAC-signing mock webhooks (our own mock contract, not Vaani's). */
   MOCK_WEBHOOK_SECRET: opt(z.string().min(16)),
   /** Vaani (docs.vaanivoice.ai). The key is sent as the X-API-Key header; never commit it. */
@@ -55,6 +59,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (c.NODE_ENV === "production" && !c.DATABASE_URL) throw new ConfigError("DATABASE_URL is required in production");
   if (c.NODE_ENV === "production" && c.VOICE_PROVIDER === "mock") {
     warnings.push("VOICE_PROVIDER=mock in production: no real calls will be processed.");
+  }
+  if (c.AUTH_MODE === "open") {
+    warnings.push(`AUTH_MODE=open: there is NO sign-in. Anyone with the URL has the "${c.OPEN_ACCESS_ROLE}" role and can see caller names and phone numbers${c.OPEN_ACCESS_ROLE === "viewer" ? "" : ", transcripts and operator actions"}.`);
   }
   const vaaniConfigured = Boolean(c.VAANI_API_KEY && c.VAANI_WEBHOOK_TOKEN);
   if (c.VOICE_PROVIDER === "vaani") {

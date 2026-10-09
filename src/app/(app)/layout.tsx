@@ -36,8 +36,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <Suspense fallback={null}><NavLinks items={items} /></Suspense>
         <div className="side-foot">
           <Suspense fallback={null}><ScopeToggle current={cfg.mode === "mock" ? "demo" : "production"} available={true} /></Suspense>
-          <span>{user.email}<br />Role: {user.role}</span>
-          <LogoutButton />
+          {cfg.AUTH_MODE === "open" ? <span>Open access<br />Role: {user.role}</span> : <><span>{user.email}<br />Role: {user.role}</span><LogoutButton /></>}
         </div>
       </aside>
       <main className="main" id="main">
@@ -46,6 +45,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <b>◈ MOCK MODE</b>
             <span>No real telephony or Vaani connection. Calls here are simulated and labelled DEMO; Telegram messages are previews only and are never delivered. Demo data is excluded from production reporting.</span>
           </div>
+        ) : null}
+        {cfg.AUTH_MODE === "open" ? (
+          <div className="banner warn" role="status"><b>⚠ Open access</b><span>There is no sign-in on this site: anyone with the link can view caller details{user.role === "viewer" ? " (read-only; transcripts, calls and settings are locked)" : " and operate it"}.</span></div>
         ) : null}
         {provider.state !== "ready" ? (
           <div className="banner warn" role="status"><b>⚠ Voice provider: {provider.state.replace(/_/g, " ")}</b><span>{provider.detail}</span></div>

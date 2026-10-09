@@ -14,6 +14,7 @@ export default async function SystemPage() {
   const p = getVoiceProvider().status();
   const rows: { name: string; status: string; tone: "ok" | "warn" | "bad" | "demo" | "neutral"; detail: string }[] = [
     { name: "Application mode", status: cfg.mode === "mock" ? "MOCK" : "LIVE", tone: cfg.mode === "mock" ? "demo" : "ok", detail: cfg.mode === "mock" ? "Simulated calls only. Not connected to any telephony provider." : "Processing real provider events." },
+    { name: "Access control", status: cfg.AUTH_MODE === "open" ? `OPEN — no sign-in (${cfg.OPEN_ACCESS_ROLE})` : "Email + password sign-in", tone: cfg.AUTH_MODE === "open" ? "warn" : "ok", detail: cfg.AUTH_MODE === "open" ? "Anyone with the URL can see enquiries, names and phone numbers. Set AUTH_MODE=login to require sign-in again." : "Roles: viewer / operator / admin, enforced server-side." },
     { name: "Database", status: health.checks.database.ok ? `Connected (${health.checks.database.kind})` : "Unavailable", tone: health.checks.database.ok ? "ok" : "bad",
       detail: health.checks.database.kind === "pglite" ? "Embedded PGlite in ./data — fine for demos; set DATABASE_URL (PostgreSQL) for production." : "PostgreSQL via DATABASE_URL." },
     { name: "Voice provider: " + p.provider, status: p.state.replace(/_/g, " "), tone: p.state === "ready" ? (p.mode === "mock" ? "demo" : "ok") : "warn", detail: p.detail },

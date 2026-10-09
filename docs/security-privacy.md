@@ -15,6 +15,10 @@
 | Headers | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Cache-Control: no-store` |
 | Logging | Structured JSON for unhandled errors, message-only (≤120 chars), no payloads, no full phone numbers |
 
+## Open-access mode
+
+`AUTH_MODE=open` removes the sign-in entirely (the production site was switched to it at the owner's request). Everyone then shares one identity with `OPEN_ACCESS_ROLE` (default **viewer**: read-only; no transcripts, no outbound calls, no cost-rate changes, no status edits). Anyone with the URL can still see caller names, phone numbers and project details. The webhook stays protected by its token. Set `AUTH_MODE=login` to restore sign-in. If you raise the role to `operator`, anyone can place calls on your Vaani credits — keep it at viewer unless the URL is private.
+
 ## What data is stored
 
 Per call: provider call id, caller phone **from call metadata**, name (if given), project facts (type, locality, area, scope, timeline, authority), volunteered budget, qualification evidence, consultation status, transcript (restricted), summary, notification records, cost records, audit events. **Not stored:** audio recordings, payment data, email, ID documents. Referral *names* are not retained (only "personal referral" / "Instagram" etc.).

@@ -267,3 +267,44 @@ describe("webhook endpoint", () => {
     handle = await testDb(); // recover for any later tests
   });
 });
+
+describe("open access mode (AUTH_MODE=open, explicit opt-in)", () => {
+  async function withMode(mode: Record<string, string>, fn: () => Promise<void>) {
+    const { resetConfigForTests } = await import("@/lib/config");
+    const prev = { AUTH_MODE: process.env.AUTH_MODE, OPEN_ACCESS_ROLE: process.env.OPEN_ACCESS_ROLE };
+    Object.assign(process.env, mode);
+    resetConfigForTests();
+    try { await fn(); } finally {
+      for (const [k, v] of Object.entries(prev)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+      resetConfigForTests();
+    }
+  }
+
+  it("default role is read-only: data is visible without signing in, but nothing can be operated, edited or called", async () => {
+    await withMode({ AUTH_MODE: "open" }, async () => {
+      jar.clear();
+      expect((await enquiriesGET(get("/api/enquiries?scope=demo"))).status).toBe(200);
+      expect((await metricsGET(get("/api/metrics?scope=demo"))).status).toBe(200);
+      const id = (await (await enquiriesGET(get("/api/enquiries?scope=demo"))).json()).items[0]?.id;
+      if (id) expect((await (await enquiryRoute.GET(get(`/api/enquiries/${id}`), ctx(id))).json()).transcript).toBeNull();
+      expect((await enquiryRoute.PATCH(patch(`/api/enquiries/${id ?? "x"}`, { consultationStatus: "confirmed" }), ctx(id ?? "x"))).status).toBe(403);
+      expect((await simulate(post("/api/simulate", { scenarioId: "T01" }))).status).toBe(403);
+      expect((await ratesRoute.PUT(new Request(BASE + "/api/settings/cost-rates", { method: "PUT", headers: { "content-type": "application/json" }, body: "{}" }))).status).toBe(403);
+    });
+  });
+  it("the role can be raised explicitly", async () => {
+    await withMode({ AUTH_MODE: "open", OPEN_ACCESS_ROLE: "operator" }, async () => {
+      jar.clear();
+      expect((await simulate(post("/api/simulate", { scenarioId: "T03" }))).status).toBe(201);
+    });
+  });
+  it("login mode (the default) is unaffected", async () => {
+    jar.clear();
+    expect((await enquiriesGET(get("/api/enquiries"))).status).toBe(401);
+  });
+  it("the webhook is NOT opened up: it still needs its signature/token", async () => {
+    await withMode({ AUTH_MODE: "open" }, async () => {
+      expect((await webhook(new Request(BASE + "/api/webhooks/voice", { method: "POST", body: "{}" }))).status).toBe(401);
+    });
+  });
+});

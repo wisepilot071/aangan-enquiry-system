@@ -1,9 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
+import { getConfig } from "@/lib/config";
 import { SESSION_COOKIE, can, isSameOrigin, verifySessionToken, type Action, type SessionUser } from "@/modules/authentication";
 
 export async function getUserOrNull(): Promise<SessionUser | null> {
+  const cfg = getConfig();
+  // Open mode (explicit opt-in): no sign-in; everyone is the same shared, role-limited identity.
+  if (cfg.AUTH_MODE === "open") return { id: "open-access", email: "open-access", role: cfg.OPEN_ACCESS_ROLE };
   const jar = await cookies();
   return verifySessionToken(jar.get(SESSION_COOKIE)?.value);
 }
