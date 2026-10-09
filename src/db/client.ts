@@ -52,6 +52,8 @@ const g = globalThis as unknown as { __aanganDb?: Promise<DbHandle> };
 export function getDbHandle(): Promise<DbHandle> {
   g.__aanganDb ??= (async () => {
     const url = process.env.DATABASE_URL?.trim();
+    // The embedded database is for development/demos only; never fall back to it in production.
+    if (!url && process.env.NODE_ENV === "production") throw new Error("DATABASE_URL is required in production");
     const h = url ? createPostgresHandle(url) : createPgliteHandle(process.env.PGLITE_DATA_DIR?.trim() || path.join(process.cwd(), "data", "pglite"));
     await h.migrate();
     return h;

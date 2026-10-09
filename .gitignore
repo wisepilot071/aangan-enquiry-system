@@ -10,3 +10,7 @@ next-env.d.ts
 coverage/
 .test-db/
 .next-e2e/
+
+.vercel
+.env*
+*.local.txt
