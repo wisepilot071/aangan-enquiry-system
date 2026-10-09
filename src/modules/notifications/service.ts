@@ -5,7 +5,10 @@ import { getConfig } from "@/lib/config";
 import { audit } from "@/modules/audit";
 import { createTelegramSender, type TelegramSender } from "./telegram";
 
-export type NotificationCategory = "qualified_handoff" | "urgent_escalation" | "missed_call_followup";
+export type NotificationCategory = "qualified_handoff" | "urgent_escalation" | "missed_call_followup" | "call_update" | "consultation_scheduled";
+
+/** Only these must reach a person; a failed informational update does not open a manual hand-off task. */
+const CRITICAL: ReadonlySet<string> = new Set(["qualified_handoff", "urgent_escalation"]);
 
 /** Creates the notification row once per (enquiry, category). Returns null if it already exists (duplicate-safe). */
 export async function createNotification(
@@ -13,9 +16,11 @@ export async function createNotification(
   e: { enquiryId: string; isDemo: boolean },
   category: NotificationCategory,
   messagePreview: string,
+  /** Extra dedupe key part, e.g. the scheduled time, so a rescheduled consultation is announced again. */
+  suffix?: string,
 ): Promise<string | null> {
   const [row] = await db.insert(notifications).values({
-    enquiryId: e.enquiryId, category, dedupeKey: `${e.enquiryId}:${category}`, messagePreview, isDemo: e.isDemo,
+    enquiryId: e.enquiryId, category, dedupeKey: suffix ? `${e.enquiryId}:${category}:${suffix}` : `${e.enquiryId}:${category}`, messagePreview, isDemo: e.isDemo,
   }).onConflictDoNothing().returning({ id: notifications.id });
   return row?.id ?? null;
 }
@@ -59,7 +64,7 @@ export async function dispatchNotification(db: Db, notificationId: string, deps:
   if (!sender) {
     await db.update(notifications).set({ status: "unavailable", errorCategory: "telegram_not_configured", lastAttemptAt: now }).where(eq(notifications.id, n.id));
     await audit(db, { actor: "system", action: "notification.unavailable", entityType: "notification", entityId: n.id, detail: { category: n.category } });
-    await openFailedHandoffTask(db, n.enquiryId, "Telegram not configured — hand off manually.");
+    if (CRITICAL.has(n.category)) await openFailedHandoffTask(db, n.enquiryId, "Telegram not configured — hand off manually.");
     return "unavailable";
   }
 
@@ -89,7 +94,7 @@ export async function dispatchNotification(db: Db, notificationId: string, deps:
 
   await db.update(notifications).set({ status: "failed", attempts, errorCategory: last.detail }).where(eq(notifications.id, n.id));
   await audit(db, { actor: "system", action: "notification.failed", entityType: "notification", entityId: n.id, detail: { category: n.category, error: last.detail, attempts } });
-  await openFailedHandoffTask(db, n.enquiryId, `Telegram delivery failed (${last.detail}) — hand off manually.`);
+  if (CRITICAL.has(n.category)) await openFailedHandoffTask(db, n.enquiryId, `Telegram delivery failed (${last.detail}) — hand off manually.`);
   return "failed";
 }
 

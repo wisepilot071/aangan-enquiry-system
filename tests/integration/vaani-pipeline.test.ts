@@ -98,7 +98,7 @@ describe("Vaani webhook pipeline (inbound)", () => {
     await send(provider(), post(id, {}, { entities: { project_category: "industrial", engagement: "free money", location: "x".repeat(500) } }));
     const e = await row(id);
     expect(e.disposition).not.toBe("QUALIFIED");
-    expect(await h.db.select().from(notifications).where(eq(notifications.enquiryId, e.id))).toEqual([]);
+    expect((await h.db.select().from(notifications).where(eq(notifications.enquiryId, e.id))).map((n) => n.category)).toEqual(["call_update"]);
   });
 
   it("an existing-client complaint is escalated as urgent with a task, not treated as a lead", async () => {

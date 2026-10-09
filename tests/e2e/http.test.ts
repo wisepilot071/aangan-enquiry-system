@@ -104,7 +104,7 @@ describe("end-to-end over HTTP", () => {
   it("unqualified call is stored but not handed to a designer; complaint escalates urgently; missed call creates a task", async () => {
     const closed = await (await postJson("/api/simulate", { scenarioId: "T03" })).json();
     expect(closed.disposition).toBe("CLOSED_NOT_FORWARDED");
-    expect(closed.notifications).toEqual([]);
+    expect(closed.notifications.map((n: { category: string }) => n.category)).toEqual(["call_update"]);
     const esc = await (await postJson("/api/simulate", { scenarioId: "T09" })).json();
     expect(esc.disposition).toBe("ESCALATED");
     expect(esc.notifications.map((n: { category: string }) => n.category)).toEqual(["urgent_escalation"]);

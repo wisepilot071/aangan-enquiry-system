@@ -52,12 +52,15 @@ describe("ingestion workflow (mock provider)", () => {
     expect(notes[0]!.messagePreview).toContain("AANGAN STUDIO — NEW QUALIFIED ENQUIRY");
   });
 
-  it("closed (unqualified) lead is stored but NOT sent to a designer", async () => {
+  it("closed (unqualified) calls are stored and reported to designers as an UPDATE, never as a lead hand-off", async () => {
     for (const id of ["T03", "T04", "T10", "T18", "T19"]) {
       const { callId } = await runScenario(id);
       const e = await enquiryFor(callId);
       expect(e.disposition, id).toBe("CLOSED_NOT_FORWARDED");
-      expect(await notesFor(e.id), id).toHaveLength(0);
+      const notes = await notesFor(e.id);
+      expect(notes.map((n) => n.category), id).toEqual(["call_update"]);
+      expect(notes[0]!.messagePreview, id).toContain("CALL UPDATE");
+      expect(notes[0]!.messagePreview, id).not.toContain("NEW QUALIFIED ENQUIRY");
     }
   });
 
@@ -98,7 +101,8 @@ describe("ingestion workflow (mock provider)", () => {
     expect(rows.length).toBeGreaterThan(0);
     for (const r of rows) {
       expect(r.messagePreview).not.toMatch(/₹|lakh|per sq ?ft/i);
-      expect(r.messagePreview).not.toMatch(/Agent:|Front Desk|transcript|virtual assistant/i);
+      expect(r.messagePreview).not.toMatch(/Agent:|Front Desk|\bUSER:/);
+      expect(r.messagePreview).not.toMatch(/\d[\d,]*\s*(lakh|crore)|budget[^\n]{0,25}\d{4}/i);
     }
   });
 });

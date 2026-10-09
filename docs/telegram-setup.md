@@ -16,13 +16,25 @@ Telegram is the notification channel; **the database is the system of record**, 
 
 Never commit the token. It is only used to build the request URL and is never logged, stored in a notification record, or included in an error.
 
-## Messages
+## Messages (what designers receive)
 
-* **New qualified enquiry** — only for `QUALIFIED`: ID, time (IST), caller, phone, project, location, scope, area, timeline, site readiness, decision-maker status, uncertainties, requested next step, source. A link to the login-protected enquiry page is added only if `APP_BASE_URL` is set.
-* **Urgent escalation** — for complaints/"speak to a person": priority, type, caller, project reference, who was asked for, summary, and an explicit reminder that **no callback time was promised**.
-* **Missed / disconnected call** — time and number; states that no transcript exists and no automatic callback is made.
+Every call taken by the AI produces **one** Telegram message, so designers always know what happened and what to do next:
 
-Never included: pricing data, the caller's budget figure, full transcripts, secrets. Rejected leads are never sent.
+| Message | When | Contains |
+|---|---|---|
+| **NEW QUALIFIED ENQUIRY** | the call passed Nikhil's checks | ID, time (IST), caller, phone, project, location, scope, area, timeline, site readiness, who decides, open questions, requested next step, **what happened**, **next action** |
+| **CALL UPDATE** | every other completed call (closed as not a fit, declined, needs a person, nothing captured) | outcome, **why**, **what happened**, whether a consultation was asked for (never "booked"), **next action** |
+| **URGENT ESCALATION** | complaint / "I want a person" | priority, who was asked for, summary, next action, and a reminder that no callback time was promised |
+| **MISSED / DISCONNECTED CALL** | nobody was reached | time, number, no transcript exists |
+| **CONSULTATION SCHEDULED** | a person confirms a consultation on the dashboard (Enquiry → Operator actions → Scheduled + date/time → *Save & notify*) | date and time (IST), who/where, **Add to Google Calendar** link, next action |
+
+The AI alone never schedules anything: a consultation is only announced as scheduled after a person records it. Saving the same time again does not repeat the message; changing the time announces the new one. A requested-but-unconfirmed consultation is always labelled "NOT booked yet".
+
+Never included: pricing data, **any money figure** (a budget the caller mentioned is replaced by "[amount]"; it stays on the dashboard), full transcripts, secrets. A link to the enquiry page is added when `APP_BASE_URL` is set.
+
+### Making the bot answer (so it doesn't look broken)
+
+Send `/start` (or any message) to the bot: it replies with its purpose and **this chat's ID**, and says whether this chat is the connected one. This works through a webhook registered with `npm run telegram:webhook -- https://<your-app>/api/telegram/webhook` (authenticated by Telegram's secret-token header, derived from the bot token). While a webhook is set, Telegram's `getUpdates` is disabled by design; the chat id is read from the reply or the dashboard's audit log (`telegram.chat_seen`).
 
 ## Delivery behaviour
 

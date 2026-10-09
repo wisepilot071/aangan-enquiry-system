@@ -53,6 +53,9 @@ export const enquiries = pgTable("enquiries", {
   humanReviewReasons: jsonb("human_review_reasons").notNull().default([]),
   humanReviewStatus: text("human_review_status").notNull().default("none"), // none|open|resolved
   consultationStatus: text("consultation_status").notNull().default("none"), // none|requested|confirmed
+  /** Set by a person when the consultation is actually scheduled (never by the AI). */
+  consultationAt: ts("consultation_at"),
+  consultationNote: text("consultation_note"),
   escalationKind: text("escalation_kind"),
   escalationRecipient: text("escalation_recipient"),
   conversionStatus: text("conversion_status").notNull().default("unknown"), // unknown|in_progress|converted|lost

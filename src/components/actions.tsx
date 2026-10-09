@@ -32,7 +32,7 @@ export function ActionButton({ url, label, confirm, done }: { url: string; label
   );
 }
 
-export function EnquiryActions({ id, review, consultation, conversion, disposition }: { id: string; review: string; consultation: string; conversion: string; disposition: string | null }) {
+export function EnquiryActions({ id, review, consultation, conversion, disposition, consultationAtLocal, consultationNote }: { id: string; review: string; consultation: string; conversion: string; disposition: string | null; consultationAtLocal?: string; consultationNote?: string }) {
   const router = useRouter();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,9 +50,26 @@ export function EnquiryActions({ id, review, consultation, conversion, dispositi
     <div className="grid" style={{ gap: 14 }}>
       {review === "open" ? <div><button className="btn small" disabled={busy} onClick={() => patch({ humanReviewStatus: "resolved" })}>Mark human review resolved</button></div> : null}
 
-      <form className="row" onSubmit={(e) => { e.preventDefault(); const v = new FormData(e.currentTarget).get("c"); patch({ consultationStatus: v }, v === "confirmed" ? "Confirm only if a person has actually booked this consultation with the caller. Continue?" : undefined); }}>
-        <label>Consultation<select name="c" defaultValue={consultation}><option value="none">Not requested</option><option value="requested">Requested (not booked)</option><option value="confirmed">Confirmed (booked by a person)</option></select></label>
-        <button className="btn secondary small" disabled={busy} style={{ alignSelf: "end" }}>Update</button>
+      <form className="grid" style={{ gap: 10 }} onSubmit={(e) => {
+        e.preventDefault();
+        const f = new FormData(e.currentTarget);
+        const status = String(f.get("c"));
+        const when = String(f.get("at") ?? "");
+        if (status === "confirmed") {
+          if (!when) { setMsg({ ok: false, text: "Pick the date and time of the consultation first." }); return; }
+          patch({ consultationStatus: "confirmed", consultationAt: `${when}:00+05:30`, consultationNote: String(f.get("note") ?? "") },
+            "This tells the designers on Telegram that the consultation is scheduled. Confirm only if a person has actually agreed this time with the caller. Continue?");
+        } else {
+          patch({ consultationStatus: status });
+        }
+      }}>
+        <div className="row">
+          <label>Consultation<select name="c" defaultValue={consultation}><option value="none">Not requested</option><option value="requested">Requested (not booked)</option><option value="confirmed">Scheduled (agreed with the caller)</option></select></label>
+          <label>Date &amp; time (IST)<input type="datetime-local" name="at" defaultValue={consultationAtLocal ?? ""} /></label>
+          <label>Who / where<input name="note" defaultValue={consultationNote ?? ""} maxLength={200} placeholder="e.g. Aryan — site visit at flat" /></label>
+          <button className="btn secondary small" disabled={busy} style={{ alignSelf: "end" }}>Save &amp; notify</button>
+        </div>
+        <p className="muted small">Choosing “Scheduled” with a date sends a Telegram message to the designers with an Add-to-Calendar link.</p>
       </form>
 
       <form className="row" onSubmit={(e) => {

@@ -28,7 +28,7 @@ describe("untrusted model / provider output", () => {
     expect(row.disposition).toBe("HUMAN_REVIEW");
     expect(row.needsHumanReview).toBe(true);
     expect((row.humanReviewReasons as string[]).join(" ")).toMatch(/invalid and was ignored/);
-    expect(notes).toEqual([]);
+    expect(notes.map((n) => n.category)).toEqual(["call_update"]); // an update for the designers, never a lead hand-off
   });
   it("model prose cannot override a failed criterion: enthusiastic summary + Nashik site → not forwarded", async () => {
     const { row, notes } = await run(completed({
@@ -36,7 +36,8 @@ describe("untrusted model / provider output", () => {
       structuredFacts: { callerType: "new_prospect", scopeKind: "full_home", engagement: "design_and_execution", locationText: "Nashik", needByWeeks: 30, decisionMaker: "owner" },
     }));
     expect(row.disposition).toBe("CLOSED_NOT_FORWARDED");
-    expect(notes).toEqual([]);
+    expect(notes.map((n) => n.category)).toEqual(["call_update"]);
+    expect(notes[0]!.messagePreview).not.toContain("NEW QUALIFIED ENQUIRY");
     expect(row.summary).toContain("Wonderful"); // stored as the provider's text, but it decided nothing
   });
   it("contradictory-but-valid facts are still decided by the rules (advice-only + execution mentioned)", async () => {
@@ -47,7 +48,8 @@ describe("untrusted model / provider output", () => {
     const { row, notes } = await run(completed({}));
     expect(row).toMatchObject({ disposition: "HUMAN_REVIEW", priority: "high", needsHumanReview: true });
     expect((row.humanReviewReasons as string[])).toContain("No usable data captured from the call.");
-    expect(notes).toEqual([]);
+    expect(notes.map((n) => n.category)).toEqual(["call_update"]);
+    expect(notes[0]!.messagePreview).toContain("Nothing usable was captured");
     expect(row.transcript).toBeNull();
   });
   it("incomplete transcript (greeting only) is human review, not a crash or a fabricated record", async () => {

@@ -1,4 +1,5 @@
 import { getDb } from "@/db/client";
+import { getConfig } from "@/lib/config";
 import { apiUser } from "@/lib/auth-server";
 import { json, readJson, safe } from "@/lib/http";
 import { can } from "@/modules/authentication";
@@ -19,6 +20,6 @@ export const PATCH = safe(async (req: Request, { params }: Ctx) => {
   if ("error" in a) return a.error;
   const body = await readJson(req, UpdateEnquirySchema);
   if (!body.ok) return body.res;
-  const d = await updateEnquiry(await getDb(), (await params).id, a.user.email, body.data);
+  const d = await updateEnquiry(await getDb(), (await params).id, a.user.email, body.data, { baseUrl: getConfig().APP_BASE_URL });
   return d ? json(d) : json({ error: "not_found" }, 404);
 });

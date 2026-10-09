@@ -83,7 +83,7 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
             <dt>Site readiness</dt><dd>{val(facts.siteAvailableInWeeks === undefined ? null : Number(facts.siteAvailableInWeeks) === 0 ? "Available now" : `In ~${facts.siteAvailableInWeeks} weeks`)}</dd>
             <dt>Decision-maker</dt><dd>{titleCase(String(facts.decisionMaker ?? "unknown"))}</dd>
             <dt>Budget</dt><dd>{facts.statedBudgetMaxInr ? `Volunteered: up to ${fmtInr(Number(facts.statedBudgetMaxInr))}` : "Not disclosed (never probed)"}</dd>
-            <dt>Consultation</dt><dd>{d.consultationStatus === "confirmed" ? <Badge tone="ok" icon="✓">Confirmed by a person</Badge> : d.consultationStatus === "requested" ? <Badge tone="warn" icon="…">Requested — NOT yet booked</Badge> : "Not requested"}</dd>
+            <dt>Consultation</dt><dd>{d.consultationStatus === "confirmed" ? <><Badge tone="ok" icon="✓">Scheduled{d.consultationAt ? ` · ${fmtDateTime(d.consultationAt)}` : ""}</Badge>{d.consultationNote ? <span className="sub">{d.consultationNote}</span> : null}</> : d.consultationStatus === "requested" ? <Badge tone="warn" icon="…">Requested — NOT yet booked</Badge> : "Not requested"}</dd>
             <dt>Referral</dt><dd>{val(facts.referralSource)}</dd>
             <dt>Summary</dt><dd>{val(d.summary)}</dd>
           </dl>
@@ -159,7 +159,8 @@ export default async function EnquiryDetail({ params, searchParams }: { params: 
 
       {operate ? (
         <section className="section" aria-labelledby="act"><h2 id="act">Operator actions</h2>
-          <div className="card"><EnquiryActions id={d.id} review={d.humanReviewStatus} consultation={d.consultationStatus} conversion={d.conversionStatus} disposition={d.disposition} /></div>
+          <div className="card"><EnquiryActions id={d.id} review={d.humanReviewStatus} consultation={d.consultationStatus} conversion={d.conversionStatus} disposition={d.disposition}
+            consultationAtLocal={d.consultationAt ? new Date(d.consultationAt.getTime() + 330 * 60_000).toISOString().slice(0, 16) : undefined} consultationNote={d.consultationNote ?? undefined} /></div>
         </section>
       ) : null}
 

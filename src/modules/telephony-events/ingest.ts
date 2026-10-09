@@ -5,7 +5,7 @@ import { callEvents, enquiries, followUpTasks, qualificationAssessments } from "
 import { audit } from "@/modules/audit";
 import { computeCallCosts, getRates, recordCosts } from "@/modules/costs";
 import { dispatchNotification, createNotification, type DispatchDeps, type NotificationCategory } from "@/modules/notifications/service";
-import { enquiryRef, formatMissedCall, formatQualifiedHandoff, formatUrgentEscalation } from "@/modules/notifications/format";
+import { enquiryRef, formatCallUpdate, formatMissedCall, formatQualifiedHandoff, formatUrgentEscalation } from "@/modules/notifications/format";
 import { containsPricingLeak } from "@/modules/pricing-guardrails";
 import { assess } from "@/modules/qualification/engine";
 import { explain } from "@/modules/qualification/explain";
@@ -266,13 +266,14 @@ async function applyEvent(
 
   const mctx = {
     ref, enquiryId: row.id, receivedAt: (patch.callStartedAt ?? row.callStartedAt) ?? occurred, callerName: facts.callerName ?? row.callerName,
-    callerPhone: phone, isDemo, baseUrl: deps.baseUrl, facts, assessment,
+    callerPhone: phone, isDemo, baseUrl: deps.baseUrl, facts, assessment, summary: event.summary ?? summarise(facts, assessment),
   };
   const queue = async (category: NotificationCategory, text: string) => {
     const id = await createNotification(tx, { enquiryId: row.id, isDemo }, category, text);
     if (id) toDispatch.push(id);
   };
   if (assessment.disposition === "QUALIFIED") await queue("qualified_handoff", formatQualifiedHandoff(mctx));
+  else if (assessment.disposition !== "ESCALATED") await queue("call_update", formatCallUpdate(mctx)); // closed, declined, needs review, nothing captured
   if (assessment.disposition === "ESCALATED") {
     await queue("urgent_escalation", formatUrgentEscalation(mctx));
     await tx.insert(followUpTasks).values({

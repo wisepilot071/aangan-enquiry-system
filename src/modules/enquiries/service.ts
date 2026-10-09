@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Db } from "@/db/client";
 import { auditEvents, callEvents, costs, enquiries, followUpTasks, notifications, qualificationAssessments } from "@/db/schema";
 import { audit } from "@/modules/audit";
-import { enquiryRef } from "@/modules/notifications/format";
+import { enquiryRef, formatConsultationScheduled } from "@/modules/notifications/format";
+import { createNotification, dispatchNotification, type DispatchDeps } from "@/modules/notifications/service";
 
 export async function getEnquiryDetail(db: Db, id: string, opts: { includeTranscript: boolean }) {
   if (!z.string().uuid().safeParse(id).success) return null;
@@ -31,21 +32,29 @@ export async function getEnquiryDetail(db: Db, id: string, opts: { includeTransc
 export const UpdateEnquirySchema = z.object({
   humanReviewStatus: z.enum(["open", "resolved"]).optional(),
   consultationStatus: z.enum(["none", "requested", "confirmed"]).optional(),
+  /** When the consultation is actually scheduled (ISO-8601 with offset). Only meaningful with status "confirmed". */
+  consultationAt: z.string().datetime({ offset: true }).nullable().optional(),
+  consultationNote: z.string().trim().max(200).optional(),
   conversionStatus: z.enum(["unknown", "in_progress", "converted", "lost"]).optional(),
   projectValueInr: z.number().positive().max(1e10).nullable().optional(),
   disposition: z.enum(["QUALIFIED", "CLOSED_NOT_FORWARDED", "DECLINED", "HUMAN_REVIEW", "ESCALATED"]).optional(),
   reason: z.string().trim().min(3).max(300).optional(),
 }).strict().refine((v) => !v.disposition || v.reason, { message: "reason is required when changing the disposition", path: ["reason"] })
+  .refine((v) => v.consultationAt === undefined || v.consultationAt === null || v.consultationStatus === "confirmed", {
+    message: "a consultation time can only be recorded together with consultationStatus=confirmed", path: ["consultationAt"] })
   .refine((v) => v.projectValueInr === undefined || v.projectValueInr === null || v.conversionStatus === "converted", {
     message: "projectValueInr may only be recorded together with conversionStatus=converted", path: ["projectValueInr"] });
 
 /** Manual operator change. Every change is audited with who/when/why. Nothing is ever auto-confirmed. */
-export async function updateEnquiry(db: Db, id: string, actor: string, input: z.infer<typeof UpdateEnquirySchema>) {
+export async function updateEnquiry(db: Db, id: string, actor: string, input: z.infer<typeof UpdateEnquirySchema>, deps: DispatchDeps & { baseUrl?: string } = {}) {
   const [before] = await db.select().from(enquiries).where(eq(enquiries.id, id));
   if (!before) return null;
   const patch: Partial<typeof enquiries.$inferInsert> = { updatedAt: new Date() };
   if (input.humanReviewStatus) { patch.humanReviewStatus = input.humanReviewStatus; patch.needsHumanReview = input.humanReviewStatus === "open"; }
   if (input.consultationStatus) patch.consultationStatus = input.consultationStatus;
+  if (input.consultationStatus && input.consultationStatus !== "confirmed") { patch.consultationAt = null; patch.consultationNote = null; }
+  if (input.consultationAt !== undefined) patch.consultationAt = input.consultationAt === null ? null : new Date(input.consultationAt);
+  if (input.consultationNote !== undefined) patch.consultationNote = input.consultationNote || null;
   if (input.conversionStatus) patch.conversionStatus = input.conversionStatus;
   if (input.projectValueInr !== undefined) patch.projectValueInr = input.projectValueInr === null ? null : String(Math.round(input.projectValueInr));
   if (input.disposition) { patch.disposition = input.disposition; patch.decisionReason = `Changed manually: ${input.reason}`.slice(0, 200); }
@@ -54,6 +63,20 @@ export async function updateEnquiry(db: Db, id: string, actor: string, input: z.
     actor, action: input.disposition ? "disposition.changed_manually" : "enquiry.updated_manually", entityType: "enquiry", entityId: id,
     detail: { ref: enquiryRef(before.seq), changes: input, from: { disposition: before.disposition, consultation: before.consultationStatus, conversion: before.conversionStatus } },
   });
+  // A person confirmed a consultation: tell the designers on Telegram (once per scheduled time).
+  if (input.consultationStatus === "confirmed") {
+    const [after] = await db.select().from(enquiries).where(eq(enquiries.id, id));
+    if (after) {
+      const facts = (after.facts ?? {}) as { scopeKind?: string; roomCount?: number };
+      const text = formatConsultationScheduled({
+        ref: enquiryRef(after.seq), enquiryId: id, callerName: after.callerName, callerPhone: after.callerPhone, locationText: after.locationText,
+        scope: [facts.scopeKind?.replace(/_/g, " "), facts.roomCount ? `${facts.roomCount} room(s)` : null].filter(Boolean).join(", ") || null,
+        at: after.consultationAt, note: after.consultationNote, isDemo: after.isDemo, baseUrl: deps.baseUrl,
+      });
+      const nid = await createNotification(db, { enquiryId: id, isDemo: after.isDemo }, "consultation_scheduled", text, after.consultationAt?.toISOString() ?? "untimed");
+      if (nid) { try { await dispatchNotification(db, nid, deps); } catch { /* recorded; the change itself is already saved */ } }
+    }
+  }
   return getEnquiryDetail(db, id, { includeTranscript: false });
 }
 
