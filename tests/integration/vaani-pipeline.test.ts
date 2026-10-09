@@ -318,7 +318,7 @@ describe("late analysis from Vaani: transcript fallback", () => {
     expect(r.imported).toBeGreaterThanOrEqual(1);
     const e = await row("webrtc-fb-old");
     expect(e).toMatchObject({ callStatus: "completed", disposition: "QUALIFIED", callerName: "Meera Rao", needsHumanReview: true });
-    expect((e.humanReviewReasons as string[]).join(" ")).toMatch(/read from the transcript/);
+    expect((e.humanReviewReasons as string[]).filter((r) => /read from the transcript/.test(r))).toHaveLength(1); // stated once, not twice
     const n = await h.db.select().from(notifications).where(eq(notifications.enquiryId, e.id));
     expect(n.map((x) => x.category)).toEqual(["qualified_handoff"]);
     expect(n[0]!.messagePreview).toMatch(/Please check the details/);

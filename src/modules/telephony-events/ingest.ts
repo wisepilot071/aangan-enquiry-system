@@ -238,7 +238,7 @@ async function applyEvent(
   // --- completed: qualify, persist, notify, cost ---
   const { facts, assessment, notes: qualNotes } = qualifyCompletedCall(event, providerId);
   const notes = [...qualNotes, ...guardrailNotes];
-  const reviewReasons = [...assessment.humanReviewReasons, ...notes];
+  const reviewReasons = [...new Set([...assessment.humanReviewReasons, ...notes])];
   const needsReview = assessment.humanReviewRequired || notes.length > 0;
   const transcriptRows = event.transcript ?? null;
 
