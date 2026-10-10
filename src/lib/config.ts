@@ -29,6 +29,9 @@ const EnvSchema = z.object({
   VAANI_API_BASE: opt(z.string().url()),
   TELEGRAM_BOT_TOKEN: opt(z.string()),
   TELEGRAM_CHAT_ID: opt(z.string()),
+  /** Google Calendar (service account). JSON key, or base64 of it. The calendar must be shared with its client_email ("Make changes to events"). */
+  GOOGLE_SERVICE_ACCOUNT_JSON: opt(z.string()),
+  GOOGLE_CALENDAR_ID: opt(z.string()),
   /** Set to "false" to forbid mock-mode Telegram records when credentials are missing. */
   ALLOW_DEMO_MODE: z.enum(["true", "false"]).default("true"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
@@ -37,6 +40,7 @@ const EnvSchema = z.object({
 export type AppConfig = z.infer<typeof EnvSchema> & {
   mode: "mock" | "live";
   telegramConfigured: boolean;
+  calendarConfigured: boolean;
   vaaniConfigured: boolean;
   warnings: string[];
 };
@@ -72,7 +76,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (c.VOICE_PROVIDER === "mock" && !c.MOCK_WEBHOOK_SECRET) {
     warnings.push("MOCK_WEBHOOK_SECRET is not set: signed mock webhooks are disabled (in-app simulator still works).");
   }
-  return { ...c, mode: c.VOICE_PROVIDER === "mock" ? "mock" : "live", telegramConfigured, vaaniConfigured, warnings };
+  const calendarConfigured = Boolean(c.GOOGLE_SERVICE_ACCOUNT_JSON && c.GOOGLE_CALENDAR_ID);
+  if (!calendarConfigured) warnings.push("Google Calendar is not configured: qualified leads get the one-click 'Add to calendar' link instead of an automatic event.");
+  return { ...c, mode: c.VOICE_PROVIDER === "mock" ? "mock" : "live", telegramConfigured, calendarConfigured, vaaniConfigured, warnings };
 }
 
 let cached: AppConfig | undefined;

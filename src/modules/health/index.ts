@@ -8,7 +8,7 @@ export interface HealthReport {
   checks: {
     database: { ok: boolean; kind?: string; detail?: string };
     voiceProvider: { provider: string; state: string; detail: string };
-    telegram: { configured: boolean };
+    telegram: { configured: boolean }; calendar: { configured: boolean };
   };
   warnings: string[];
 }
@@ -26,5 +26,5 @@ export async function getHealth(handle: DbHandle | null): Promise<HealthReport> 
     catch (e) { db = { ok: false, kind: handle.kind, detail: e instanceof Error && e.message === "timeout" ? "timeout" : "unreachable" }; }
   }
   const status: HealthReport["status"] = !db.ok ? "down" : p.state !== "ready" || !c.telegramConfigured ? "degraded" : "ok";
-  return { status, mode: c.mode, checks: { database: db, voiceProvider: { provider: p.provider, state: p.state, detail: p.detail }, telegram: { configured: c.telegramConfigured } }, warnings: c.warnings };
+  return { status, mode: c.mode, checks: { database: db, voiceProvider: { provider: p.provider, state: p.state, detail: p.detail }, telegram: { configured: c.telegramConfigured }, calendar: { configured: c.calendarConfigured } }, warnings: c.warnings };
 }

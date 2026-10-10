@@ -53,3 +53,18 @@ Duplicates are prevented by a unique `(enquiry, category)` key, so a replayed we
 ## Tested vs untested
 
 Tested with mocked HTTP: success, retries, backoff, rate limit, permanent errors, timeouts, token never leaking. **Not tested against the real Telegram service.**
+
+## Google Calendar scheduling (automatic, after a qualified call)
+
+When a call is **QUALIFIED**, the app places a **tentative** 60-minute design consultation on the studio's Google Calendar and sends the designer a Telegram message ("DESIGN CONSULTATION PENCILLED IN") with the calendar event link.
+
+* The **caller is not promised a time** on the call (the agent only says the team will confirm). The enquiry stays "requested" until a person confirms it on the dashboard.
+* Slot rule (defaults, to be confirmed with Nikhil): next free hour Mon–Sat, 10 AM–7 PM IST, at least 24 hours ahead, within 14 days, avoiding existing events.
+* One event per enquiry (idempotent). If Google fails, the designer gets a "NOT SCHEDULED AUTOMATICALLY" message with the reason and schedules manually.
+
+### One-time Google setup
+1. Google Cloud Console → create/select a project → enable **Google Calendar API**.
+2. IAM → Service accounts → create one → Keys → **Add key → JSON** (download).
+3. In Google Calendar, share the studio calendar with the service account's `client_email` using **Make changes to events**.
+4. Copy the calendar's ID (Calendar settings → Integrate calendar).
+5. Set `GOOGLE_SERVICE_ACCOUNT_JSON` (raw JSON or base64) and `GOOGLE_CALENDAR_ID` in `.env` and in Vercel (as sensitive variables). Never commit the key.

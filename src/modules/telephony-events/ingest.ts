@@ -4,6 +4,8 @@ import type { Db } from "@/db/client";
 import { callEvents, enquiries, followUpTasks, qualificationAssessments } from "@/db/schema";
 import { audit } from "@/modules/audit";
 import { computeCallCosts, getRates, recordCosts } from "@/modules/costs";
+import { scheduleConsultation } from "@/modules/calendar/schedule";
+import type { CalendarClient } from "@/modules/calendar/google";
 import { dispatchNotification, createNotification, type DispatchDeps, type NotificationCategory } from "@/modules/notifications/service";
 import { enquiryRef, formatCallUpdate, formatMissedCall, formatQualifiedHandoff, formatUrgentEscalation } from "@/modules/notifications/format";
 import { containsPricingLeak } from "@/modules/pricing-guardrails";
@@ -29,6 +31,8 @@ export interface IngestOutcome {
 export interface IngestDeps extends DispatchDeps {
   now?: Date;
   baseUrl?: string;
+  /** undefined = from configuration; null = no calendar. */
+  calendarClient?: CalendarClient | null;
 }
 
 const sha = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
@@ -127,6 +131,9 @@ export async function ingestEvent(
     await db.update(callEvents).set({ status: result.status, enquiryId: result.enquiryId, errorCategory: result.reason ?? null }).where(eq(callEvents.id, eventRowId));
     for (const id of toDispatch) {
       try { await dispatchNotification(db, id, deps); } catch { /* recorded inside dispatch; never lose the enquiry */ }
+    }
+    if (result.status === "processed" && event.type === "call.completed" && (event.direction ?? "inbound") === "inbound") {
+      try { await scheduleConsultation(db, result.enquiryId, { ...deps, client: deps.calendarClient }); } catch { /* reported inside; never lose the enquiry */ }
     }
     return { httpStatus: 200, ...result };
   } catch (e) {

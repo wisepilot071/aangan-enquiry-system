@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 630" width="1180" height="630" font-family="'Segoe UI', Arial, Helvetica, sans-serif">
+  <title>Aangan Studio — AI Phone Enquiry — Components Map</title>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#374151"/>
+    </marker>
+    <filter id="sh" x="-5%" y="-5%" width="110%" height="125%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#0f172a" flood-opacity="0.18"/></filter>
+  </defs>
+
+  <rect width="1180" height="630" fill="#ffffff"/>
+  <text x="24" y="38" font-size="22" font-weight="700" fill="#111827">Aangan Studio · AI Phone Enquiry — Components Map</text>
+
+  <!-- column headers -->
+  <rect x="20" y="60" width="1140" height="36" fill="#e5e7eb"/>
+  <g font-size="15" font-weight="700" fill="#1f2937" text-anchor="middle">
+    <text x="105" y="84">Actor</text>
+    <text x="287" y="84">Trigger</text><text x="481" y="84">Input</text><text x="675" y="84">Processing</text>
+    <text x="869" y="84">AI</text><text x="1063" y="84">Output</text>
+  </g>
+
+  <!-- lanes -->
+  <rect x="20" y="100" width="1140" height="120" fill="#e8ecf6"/>
+  <rect x="20" y="220" width="1140" height="120" fill="#eaf1fb"/>
+  <rect x="20" y="340" width="1140" height="120" fill="#f6f1de"/>
+  <rect x="20" y="460" width="1140" height="120" fill="#e3f3f2"/>
+  <g stroke="#ffffff" stroke-width="3">
+    <line x1="20" y1="100" x2="1160" y2="100"/><line x1="20" y1="220" x2="1160" y2="220"/><line x1="20" y1="340" x2="1160" y2="340"/>
+    <line x1="20" y1="460" x2="1160" y2="460"/><line x1="20" y1="580" x2="1160" y2="580"/><line x1="190" y1="60" x2="190" y2="580"/>
+  </g>
+
+  <!-- actors -->
+  <g font-size="16" font-weight="700" fill="#111827" text-anchor="middle">
+    <text x="105" y="166">Caller</text>
+    <text x="105" y="286">Voice Agent</text>
+    <text x="105" y="406">Aangan App</text>
+    <text x="105" y="526">Designer</text>
+  </g>
+  <g font-size="12.5" fill="#475569" text-anchor="middle">
+    <text x="105" y="184">(customer)</text>
+    <text x="105" y="304">(Vaani)</text>
+    <text x="105" y="424">(rules + dashboard)</text>
+    <text x="105" y="544">(on Telegram)</text>
+  </g>
+
+  <!-- flow arrows -->
+  <g fill="none" stroke="#374151" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr)">
+    <path d="M287 192 V212 H481 V248"/>
+    <path d="M563 280 H787"/>
+    <path d="M951 280 H981"/>
+    <path d="M1063 312 V334 H675 V368"/>
+    <path d="M757 400 H981"/>
+    <path d="M1063 432 V488"/>
+  </g>
+  <text x="820" y="330" font-size="12.5" fill="#374151" font-style="italic">call summary sent</text>
+
+  <!-- boxes -->
+  <g font-size="15" font-weight="600" fill="#111827" text-anchor="middle" filter="url(#sh)">
+    <rect x="205" y="128" width="164" height="64" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+    <text x="287" y="166">Calls the studio</text>
+
+    <rect x="399" y="248" width="164" height="64" rx="6" fill="#cffafe" stroke="#06b6d4" stroke-width="1.6"/>
+    <text x="481" y="274">Talks politely</text><text x="481" y="294">to the caller</text>
+
+    <rect x="787" y="248" width="164" height="64" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.6"/>
+    <text x="869" y="274">Understands and</text><text x="869" y="294">collects the answers</text>
+
+    <rect x="981" y="248" width="164" height="64" rx="6" fill="#ffedd5" stroke="#f97316" stroke-width="1.6"/>
+    <text x="1063" y="274">Sends transcript</text><text x="1063" y="294">and summary</text>
+
+    <rect x="593" y="368" width="164" height="64" rx="6" fill="#fef9c3" stroke="#eab308" stroke-width="1.6"/>
+    <text x="675" y="394">Checks Nikhil's</text><text x="675" y="414">rules</text>
+
+    <rect x="981" y="368" width="164" height="64" rx="6" fill="#ffedd5" stroke="#f97316" stroke-width="1.6"/>
+    <text x="1063" y="394">Decision and reason</text><text x="1063" y="414">on the dashboard</text>
+
+    <rect x="981" y="488" width="164" height="64" rx="6" fill="#ffedd5" stroke="#f97316" stroke-width="1.6"/>
+    <text x="1063" y="514">Update sent to</text><text x="1063" y="534">the designer</text>
+  </g>
+
+  <text x="24" y="610" font-size="13" fill="#4b5563">The rules decide, not the voice AI. A person confirms any consultation.</text>
+</svg>

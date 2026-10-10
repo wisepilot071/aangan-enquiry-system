@@ -56,6 +56,9 @@ export const enquiries = pgTable("enquiries", {
   /** Set by a person when the consultation is actually scheduled (never by the AI). */
   consultationAt: ts("consultation_at"),
   consultationNote: text("consultation_note"),
+  /** Google Calendar event created for this enquiry (one per enquiry). */
+  calendarEventId: text("calendar_event_id"),
+  calendarEventLink: text("calendar_event_link"),
   escalationKind: text("escalation_kind"),
   escalationRecipient: text("escalation_recipient"),
   conversionStatus: text("conversion_status").notNull().default("unknown"), // unknown|in_progress|converted|lost

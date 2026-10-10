@@ -119,6 +119,28 @@ Details: ${or(c.note, "none")}${cal}
 Next action: Please be ready for this consultation and update the enquiry afterwards.${c.baseUrl ? `\nDetails (login not required): ${c.baseUrl.replace(/\/$/, "")}/enquiries/${c.enquiryId}` : ""}`;
 }
 
+/** Sent when the app has placed a PROPOSED slot on the studio calendar after a qualified call. The caller was not promised a time. */
+export function formatConsultationProposed(c: { ref: string; enquiryId: string; callerName?: string | null; callerPhone?: string | null; locationText?: string | null; at: Date; eventLink?: string | null; isDemo: boolean; baseUrl?: string }): string {
+  return `${c.isDemo ? "[DEMO / MOCK — not a real enquiry]\n" : ""}AANGAN STUDIO — DESIGN CONSULTATION PENCILLED IN
+Enquiry ID: ${c.ref}
+Caller: ${or(c.callerName)}
+Phone: ${or(c.callerPhone)}
+Location: ${or(c.locationText)}
+Proposed slot: ${formatIst(c.at)} (placed on the studio Google Calendar as tentative)
+Caller was told only that the team will confirm; no time was promised.${c.eventLink ? `\nCalendar event: ${c.eventLink}` : ""}
+Next action: Call the lead to confirm or change the time, then mark it confirmed on the dashboard.${c.baseUrl ? `\nDetails (login not required): ${c.baseUrl.replace(/\/$/, "")}/enquiries/${c.enquiryId}` : ""}`;
+}
+
+/** Sent when automatic calendar scheduling could not complete, so the designer is never left guessing. */
+export function formatConsultationUnscheduled(c: { ref: string; enquiryId: string; callerName?: string | null; callerPhone?: string | null; reason: string; isDemo: boolean; baseUrl?: string }): string {
+  return `${c.isDemo ? "[DEMO / MOCK — not a real enquiry]\n" : ""}AANGAN STUDIO — CONSULTATION NOT SCHEDULED AUTOMATICALLY
+Enquiry ID: ${c.ref}
+Caller: ${or(c.callerName)}
+Phone: ${or(c.callerPhone)}
+Why: ${c.reason}
+Next action: Please schedule this consultation manually (dashboard → Schedule consultation).${c.baseUrl ? `\nDetails (login not required): ${c.baseUrl.replace(/\/$/, "")}/enquiries/${c.enquiryId}` : ""}`;
+}
+
 export function formatUrgentEscalation(c: MessageContext): string {
   const f = c.facts;
   const kind = c.assessment.escalation?.kind === "existing_client_complaint" ? "Existing-client complaint" : "Caller asked for a person";
